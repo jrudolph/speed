@@ -2,33 +2,31 @@ libraryDependencies ++= Seq(
   "org.specs2" %% "specs2" % "1.13" % "test"
 )
 
-//scalaVersion := "2.10.2"
-
 ScalariformSupport.formatSettings
 
-Revolver.settings
+// this doesn't help, you need the extra repo in sbt.boot.properties
+// resolvers += Resolver.sonatypeRepo("snapshots")
+
+// use macro-paradise
+scalaOrganization := "org.scala-lang.macro-paradise"
 
 scalaVersion := "2.10.3-SNAPSHOT"
 
-resolvers += Resolver.sonatypeRepo("snapshots")
+// we disable auto scala-library
+autoScalaLibrary := false
 
-scalaOrganization := "org.scala-lang.macro-paradise"
-
+// and add it here manually but with provided scope
+// (i.e. practically ignored for dependents)
 libraryDependencies <++= scalaVersion ( version =>
   Seq("scala-library", "scala-reflect").map (
     "org.scala-lang.macro-paradise" % _ % version % "provided"
   )
 )
 
-libraryDependencies <+= (scalaVersion)("org.scala-lang.macro-paradise" % "scala-library" % _ % "provided" )
-
-autoScalaLibrary := false
-
+// we want another scala version in the tests
 scalaVersion in Test := "2.10.2"
 
 scalaOrganization in Test := "org.scala-lang"
-
-compile in Test <<= (compile in Test).dependsOn(packageBin in Compile)
 
 scalaInstance in Test <<= (appConfiguration, scalaOrganization in Test, scalaVersion in Test, scalaHome in Test) map { (app, org, version, home) =>
   val launcher = app.provider.scalaProvider.launcher
@@ -37,3 +35,12 @@ scalaInstance in Test <<= (appConfiguration, scalaOrganization in Test, scalaVer
     case Some(h) => ScalaInstance(h, launcher)
   }
 }
+
+// make sure to recompile tests every time
+cleanFiles in Test <<= Seq(classDirectory in Test).join
+
+cleanKeepFiles in Test := Nil
+
+clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean
+
+compile in Test <<= (compile in Test).dependsOn(clean in Test)
