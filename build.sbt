@@ -4,8 +4,8 @@ libraryDependencies ++= Seq(
 
 ScalariformSupport.formatSettings
 
-// this doesn't help, you need the extra repo in sbt.boot.properties
-// resolvers += Resolver.sonatypeRepo("snapshots")
+// this doesn't help alone, you need the extra repo in sbt.boot.properties
+resolvers += Resolver.sonatypeRepo("snapshots")
 
 // use macro-paradise
 scalaOrganization := "org.scala-lang.macro-paradise"

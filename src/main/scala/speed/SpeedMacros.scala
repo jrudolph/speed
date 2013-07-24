@@ -1,0 +1,465 @@
+package speed
+
+import scala.reflect.macros.Context
+
+object SpeedMacros {
+  def foreachImpl[T](c: Context)(f: c.Expr[Int ⇒ T]): c.Expr[Unit] = {
+
+    val t =
+      new Helper[c.type](c) with MethodHelper {
+        import c.universe._
+
+        override def run(fTree: Tree): Tree = {
+          def generateGeneral(start: Tree, end: Tree, step: Tree, isInclusive: Boolean, init: Tree, varName: TermName, application: Tree): Tree = {
+            val upOp = newTermName(if (isInclusive) "$less$eq" else "$less")
+            val downOp = newTermName(if (isInclusive) "$greater$eq" else "$greater")
+            val startVar = c.fresh(newTermName("start"))
+            val endVar = c.fresh(newTermName("end"))
+            val stepVar = c.fresh(newTermName("step"))
+            val deciderVar = c.fresh(newTermName("decider"))
+
+            /*val deciderVar =
+              partiallyEvaluate(q"""
+              val $startVar = $start
+              val $endVar = $end
+              val $stepVar = $step
+              $stepVar match {
+                  case 0 => throw new IllegalArgumentException("step cannot be 0.")
+                  case 1 => 1
+                  case -1 => -1
+                  case _ =>
+                    if ($stepVar > 0)
+                      if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
+                      else 1
+                    else
+                      if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
+                      else -1
+                }
+              """) match {
+                case l @ Literal(Constant(x)) ⇒ l
+                case x@_                        ⇒ Literal(Constant(0))
+              }*/
+
+            partiallyEvaluate(
+              q"""
+
+              $init
+              val $startVar = $start
+              val $endVar = $end
+              val $stepVar = $step
+
+              val $deciderVar =
+                $stepVar match {
+                  case 0 => throw new IllegalArgumentException("step cannot be 0.")
+                  case 1 => 1
+                  case -1 => -1
+                  case _ =>
+                    if ($stepVar > 0)
+                      if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
+                      else 1
+                    else
+                      if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
+                      else -1
+                }
+
+              $deciderVar match {
+                case 1 => // count up
+                  var $varName = $startVar
+
+                  while ($varName $upOp $endVar) {
+                    $application
+                    $varName += $stepVar
+                  }
+                case -1 => // count down
+                  var $varName = $startVar
+                  while ($varName $downOp $endVar) {
+                    $application
+                    $varName += $stepVar
+                  }
+
+                case 0 => // don't count but play it safe because of potential overflows at the integer bounds
+                  val gap = $endVar.toLong - $startVar.toLong
+                  val isExact = gap % $stepVar == 0
+                  val hasStub = $isInclusive || !isExact
+                  val longLength = gap / $stepVar + (if (hasStub) 1 else 0)
+                  val isEmpty =
+                  ($startVar > $endVar && $stepVar > 0) ||
+                    ($startVar < $endVar && $stepVar < 0) ||
+                    ($startVar == $endVar && !$isInclusive)
+                  val numRangeElements =
+                    if (isEmpty) 0
+                    else longLength
+                  val terminalElement = ($startVar.toLong + numRangeElements * $stepVar).toInt
+
+                  var $varName = $startVar
+                  while ($varName != terminalElement) {
+                    $application
+                    $varName += $stepVar
+                  }
+              }
+              """)
+          }
+
+          def partiallyEvaluate(tree: Tree): Tree =
+            c.resetAllAttrs(new ConstantFolder().transform(c.typeCheck(c.resetAllAttrs(tree))))
+
+          def trace(msg: String): Unit = {}
+
+          /**
+           * This partial evaluator has no sensible notion of lexical scopes, so be careful
+           */
+          class ConstantFolder(initEnv: Map[Symbol, Constant] = Map.empty) extends Transformer {
+            var environmentStack = collection.immutable.Stack[Map[Symbol, Constant]](Map.empty)
+
+            def createBinding(sym: Symbol, value: Constant): Unit = {
+              val top = environmentStack.head
+              assert(!top.contains(sym))
+              environmentStack = environmentStack.pop.push(top + (sym -> value))
+            }
+
+            def envContains(sym: Symbol): Boolean = environmentStack.exists(_.contains(sym))
+            def lookup(sym: Symbol): Constant = environmentStack.find(_.contains(sym)).get(sym)
+            def pushContext() = environmentStack = environmentStack.push(Map.empty)
+            def popContext() = environmentStack = environmentStack.pop
+
+            override def transform(tree: Tree): Tree = {
+              def binaryOp(e1: Tree, e2: Tree, op: TermName)(calc: ((Any, Any)) ⇒ Any) =
+                (transform(e1), transform(e2)) match {
+                  case (Literal(Constant(a)), Literal(Constant(b))) ⇒ Literal(Constant(calc((a, b))))
+                  case (x1, x2)                                     ⇒ q"$x1 $op $x2"
+                }
+              def unaryOp(e1: Tree, op: TermName)(calc: Any ⇒ Any) =
+                transform(e1) match {
+                  case lit @ Literal(Constant(a)) ⇒ Literal(Constant(calc(a)))
+                  case x                          ⇒ q"$x.$op"
+                }
+
+              tree match {
+                /*case Block(stats, expr) ⇒
+                  pushContext()
+                  val res = super.transform(tree)
+                  popContext()
+                  res*/
+                case v @ Ident(name) if envContains(v.symbol) ⇒
+                  trace(s"Replaced constant binding for $name")
+                  Literal(lookup(v.symbol))
+
+                case v @ q"val $x = $expr" ⇒
+                  //trace(s"Trying to figure out value of $x ($expr), env has values for ${env.keys.mkString(", ")}")
+                  transform(expr) match {
+                    case lit @ Literal(constant) ⇒
+                      trace(s"Found literal binding for ${v.symbol}: $constant")
+                      createBinding(v.symbol, constant)
+                      q""
+                    case expr ⇒
+                      q"val $x = $expr"
+                  }
+                case q"- $expr" ⇒
+                  unaryOp(expr, "unary_$minus") {
+                    case i: Int ⇒ (-i): Int
+                  }
+                case q"$expr.toLong" ⇒
+                  unaryOp(expr, "toLong") {
+                    case i: Int ⇒ i.toLong
+                  }
+                case q"$expr.toInt" ⇒
+                  unaryOp(expr, "toInt") {
+                    case i: Long ⇒ i.toInt
+                    case i: Int  ⇒ i
+                  }
+                // There's a lots of code duplication coming. The reason is that
+                // this is the easiest way of making sure that we exactly match
+                // the primitive implicit conversions Scala is also doing.
+                case q"$e1 + $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$plus")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 + i2
+                    case (i1: Int, i2: Long)  ⇒ i1 + i2
+                    case (i1: Long, i2: Int)  ⇒ i1 + i2
+                    case (i1: Long, i2: Long) ⇒ i1 + i2
+                  }
+
+                case q"$e1 - $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$minus")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 - i2
+                    case (i1: Int, i2: Long)  ⇒ i1 - i2
+                    case (i1: Long, i2: Int)  ⇒ i1 - i2
+                    case (i1: Long, i2: Long) ⇒ i1 - i2
+                  }
+                case q"$e1 * $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$times")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 * i2
+                    case (i1: Int, i2: Long)  ⇒ i1 * i2
+                    case (i1: Long, i2: Int)  ⇒ i1 * i2
+                    case (i1: Long, i2: Long) ⇒ i1 * i2
+                  }
+                case q"$e1 / $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$div")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 / i2
+                    case (i1: Int, i2: Long)  ⇒ i1 / i2
+                    case (i1: Long, i2: Int)  ⇒ i1 / i2
+                    case (i1: Long, i2: Long) ⇒ i1 / i2
+                  }
+                case q"$e1 % $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$percent")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 % i2
+                    case (i1: Int, i2: Long)  ⇒ i1 % i2
+                    case (i1: Long, i2: Int)  ⇒ i1 % i2
+                    case (i1: Long, i2: Long) ⇒ i1 % i2
+                  }
+                case q"$e1 == $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$eq$eq")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 == i2
+                    case (i1: Int, i2: Long)  ⇒ i1 == i2
+                    case (i1: Long, i2: Int)  ⇒ i1 == i2
+                    case (i1: Long, i2: Long) ⇒ i1 == i2
+                  }
+                case q"$e1 > $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$greater")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 > i2
+                    case (i1: Int, i2: Long)  ⇒ i1 > i2
+                    case (i1: Long, i2: Int)  ⇒ i1 > i2
+                    case (i1: Long, i2: Long) ⇒ i1 > i2
+                  }
+                case q"$e1 < $e2" ⇒
+                  binaryOp(e1, e2, newTermName("$less")) {
+                    case (i1: Int, i2: Int)   ⇒ i1 < i2
+                    case (i1: Int, i2: Long)  ⇒ i1 < i2
+                    case (i1: Long, i2: Int)  ⇒ i1 < i2
+                    case (i1: Long, i2: Long) ⇒ i1 < i2
+                  }
+                case q"$e1 || $e2" ⇒
+                  // do a bit of peephole optimization
+                  (transform(e1), transform(e2)) match {
+                    case (Literal(Constant(true)), _)      ⇒ Literal(Constant(true))
+                    case (Literal(Constant(false)), other) ⇒ other
+
+                    // this one is wrong if the first operand does side-effects
+                    case (_, Literal(Constant(true)))      ⇒ Literal(Constant(true))
+                    case (other, Literal(Constant(false))) ⇒ other
+                    case (x1, x2)                          ⇒ q"$x1 || $x2"
+                  }
+                case q"$e1 && $e2" ⇒
+                  // do a bit of peephole optimization
+                  (transform(e1), transform(e2)) match {
+                    case (Literal(Constant(true)), other) ⇒ other
+                    case (Literal(Constant(false)), _)    ⇒ Literal(Constant(false))
+
+                    // this one is wrong if the first operand does side-effects
+                    case (_, Literal(Constant(false)))    ⇒ Literal(Constant(false))
+                    case (other, Literal(Constant(true))) ⇒ other
+                    case (x1, x2)                         ⇒ q"$x1 && $x2"
+                  }
+                case q"! $expr" ⇒
+                  unaryOp(expr, "unary_$bang") {
+                    case b: Boolean ⇒ !b
+                  }
+                case q"if ($cond) $rawThenB else $rawElseB" ⇒
+                  def thenB = transform(rawThenB)
+                  def elseB = transform(rawElseB)
+                  transform(cond) match {
+                    case Literal(Constant(true))  ⇒ thenB
+                    case Literal(Constant(false)) ⇒ elseB
+                    case x                        ⇒ q"if ($x) $thenB else $elseB"
+                  }
+
+                case m @ Match(selector, cases) ⇒
+                  transform(selector) match {
+                    case lit @ Literal(selectorValue) ⇒
+                      trace(s"Found literal binding for match selector: $selectorValue ($selector), trying to run match")
+                      val allConstant = cases.forall(_.pat match {
+                        case Literal(c)          ⇒ true
+                        case Ident(nme.WILDCARD) ⇒ true
+                        case _                   ⇒ false
+                      })
+                      val lastPattern = c.universe.showRaw(cases.last.pat)
+                      trace(s"Only constant pattern branches: $allConstant: $lastPattern")
+
+                      if (allConstant) {
+                        val matchingCase =
+                          cases.find(_.pat match {
+                            case Literal(`selectorValue`) ⇒ true
+                            case Ident(nme.WILDCARD)      ⇒ true
+                            case _                        ⇒ false
+                          }).get
+
+                        transform(matchingCase.body)
+                      } else super.transform(m)
+
+                    case sel ⇒
+                      trace(s"Got selector $sel")
+                      super.transform(m)
+                  }
+
+                case x ⇒ super.transform(x)
+              }
+            }
+          }
+
+          def generateFast(start: Int, end: Int, step: Int, isInclusive: Boolean, init: Tree, varName: TermName, application: Tree): Tree = {
+            val gap = end.toLong - start.toLong
+            val isExact = gap % step == 0
+            val hasStub = isInclusive || !isExact
+            val longLength = gap / step + (if (hasStub) 1 else 0)
+
+            val isEmpty =
+              (start > end && step > 0) ||
+                (start < end && step < 0) ||
+                (start == end && !isInclusive)
+
+            val numRangeElements =
+              if (step == 0) throw new IllegalArgumentException("step cannot be 0.")
+              else if (isEmpty) 0
+              else {
+                val len = longLength
+                if (len > scala.Int.MaxValue) -1
+                else len.toInt
+              }
+
+            def description = "%d %s %d by %s".format(start, if (isInclusive) "to" else "until", end, step)
+            if (numRangeElements < 0)
+              throw new IllegalArgumentException(description + ": seqs cannot contain more than Int.MaxValue elements.")
+
+            val terminalElement = start + numRangeElements * step
+
+            val isCommonCase = (start != Int.MinValue || end != Int.MinValue)
+
+            /*
+            if (step == 0) throw new IllegalArgumentException("step cannot be 0.")
+            else if (step == 1) {
+              var i = start
+
+              while (i </*=*/ end) {
+                // application
+                i += 1
+              }
+            } else if (step == -1) {
+              var i = start
+              while (i >/*=*/ end) {
+                // application
+                i -= 1
+              }
+            } else {
+              val gap = end.toLong - start.toLong
+              val isExact = gap % step == 0
+              val hasStub = isInclusive || !isExact
+              val longLength = gap / step + (if (hasStub) 1 else 0)
+              val isEmpty =
+              (start > end && step > 0) ||
+                (start < end && step < 0) ||
+                (start == end && !isInclusive)
+              val numRangeElements =
+                if (isEmpty) 0
+                else longLength
+              val terminalElement = start.toLong + numRangeElements * step
+
+              var i = start.toLong
+              while (i != terminalElement) {
+                // application
+                i += step
+              }
+            }
+            */
+            //if (isCommonCase)
+            q"""
+                $init
+                var $varName = $start
+                while($varName != $terminalElement) {
+                  $application
+                  $varName += $step
+                }
+              """
+            /*else
+              q"""
+                $init
+                var $valName = $start
+                var count = 0
+                while(count < $numRangeElements) {
+                  $application
+                  count += 1
+                  $valName += $step
+                }
+              """*/
+          }
+          val (valName: TermName, application: Tree, init: Tree) =
+            c.resetAllAttrs(fTree) match {
+              // try to find literal anonymous functions
+              case q"( $i => $body )"             ⇒ (i.name, q"{ $body }", q"")
+              // this matches partial evaluation (like `println _`)
+              case Block(Nil, q"( $i => $body )") ⇒ (i.name, q"{ $body }", q"")
+              case _ ⇒
+                val fun = c.fresh(newTermName("funInit"))
+                (newTermName("i"), q"$fun(i)", q"val $fun = $fTree")
+            }
+
+          generateGeneral(start, end, by, inclusive, init, valName, application)
+        }
+      }.run(f.tree)
+    println(s"Result for ${c.prefix} was: $t")
+
+    c.Expr[Unit](t)
+  }
+  /*def sizeImpl(c: Context): c.Expr[Int] = c.Expr[Int] {
+    new Helper[c.type](c) with MethodHelper {
+      import c.universe._
+      override def run = q"($from - $to) / $by"
+    }.run
+  }*/
+  def normalRangeConv(c: Context)(f: c.Expr[FastRange]): c.Expr[Range] =
+    c.Expr[Range] {
+      new Helper[c.type](c) with SpeedHelper {
+
+        import c.universe._
+
+        override def run = {
+          val (start, end, by, inclusive) = matchConstructor(f.tree)
+          if (inclusive) q"Range.inclusive($start, $end, $by)"
+          else q"Range($start, $end, $by)"
+        }
+
+      }.run
+    }
+
+  def rangeForeachImpl(c: Context)(range: c.Expr[Any]): c.Expr[(List[Int], List[Int])] = {
+    val r = range.asInstanceOf[c.Expr[Range]]
+    c.universe.reify {
+      import speed._
+      val buffer = new scala.collection.mutable.ListBuffer[Int]
+      var count = 0
+      val x = 12
+      r.splice.foreach { element ⇒
+        val gap = x
+        require(count < 1000, "Too many iterations needed")
+        count += 1
+        buffer += element
+      }
+      //println(c.literal(range.toString).splice, buffer.toList, r.splice.iterator.toList, buffer.toList + "/" + r.splice.iterator.toList)
+      //assert(buffer.toList == r.splice.iterator.toList, buffer.toList + "/" + r.splice.iterator.toList)
+      (buffer.toList, r.splice.iterator.toList)
+    }
+  }
+}
+
+trait SpeedHelper { self: QuasiquoteCompat ⇒
+  import c.universe._
+
+  def matchConstructor(tree: Tree): (Tree, Tree, Tree, Boolean) = tree match {
+    case q"${ _ }.intWrapper($from).to($to)"               ⇒ (from, to, c.literal(1).tree, true)
+    case q"${ _ }.intWrapper($from).to($to).by($by)"       ⇒ (from, to, by, true)
+    case q"${ _ }.intWrapper($from).until($until)"         ⇒ (from, until, c.literal(1).tree, false)
+    case q"${ _ }.intWrapper($from).until($until).by($by)" ⇒ (from, until, by, false)
+  }
+
+}
+
+trait MethodHelper extends SpeedHelper { self: QuasiquoteCompat ⇒
+  val (start, end, by, inclusive) = matchConstructor(c.prefix.tree)
+}
+
+abstract class Helper[C <: Context](val c: C) extends QuasiquoteCompat {
+  import c.universe._
+  type Tr = Tree
+
+  def run(fTree: Tree): Tree = ???
+  def run: Tree = ???
+  def old(fTree: Tr): Tr = ???
+}
