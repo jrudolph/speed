@@ -129,6 +129,32 @@ class SpeedSpecs extends Specification {
         a === b
       }
     }
+
+    "provide foldLeft for mapped ranges" in {
+      "simple" in {
+        (1 to 1000).map(i ⇒ i * i).foldLeft(0)(_ + _) === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+      }
+      "sum" in {
+        (1 to 1000).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+      }
+      "double map" in {
+        (1 to 1000).map(j ⇒ j).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+      }
+      "flatMap" in {
+        val reference =
+          (for {
+            i ← (1 to 100): Range
+            j ← (1 to 100): Range
+          } yield i * j).sum
+        val value =
+          (for {
+            i ← 1 to 100
+            j ← 1 to 100
+          } yield i * j).sum
+
+        value === reference
+      }
+    }
   }
 }
 
