@@ -48,6 +48,10 @@ object SpeedMacros {
               val $endVar = $end
               val $stepVar = $step
 
+              // a variable whose value decides which implementation to use
+              //  1: count up and compare with `<` / `<=`
+              // -1: count down and compare with `>` / `>=`
+              //  0: safe version, if abs(step) != 1, to make sure not to overflow the bounds
               val $deciderVar =
                 $stepVar match {
                   case 0 => throw new IllegalArgumentException("step cannot be 0.")
@@ -295,91 +299,6 @@ object SpeedMacros {
             }
           }
 
-          def generateFast(start: Int, end: Int, step: Int, isInclusive: Boolean, init: Tree, varName: TermName, application: Tree): Tree = {
-            val gap = end.toLong - start.toLong
-            val isExact = gap % step == 0
-            val hasStub = isInclusive || !isExact
-            val longLength = gap / step + (if (hasStub) 1 else 0)
-
-            val isEmpty =
-              (start > end && step > 0) ||
-                (start < end && step < 0) ||
-                (start == end && !isInclusive)
-
-            val numRangeElements =
-              if (step == 0) throw new IllegalArgumentException("step cannot be 0.")
-              else if (isEmpty) 0
-              else {
-                val len = longLength
-                if (len > scala.Int.MaxValue) -1
-                else len.toInt
-              }
-
-            def description = "%d %s %d by %s".format(start, if (isInclusive) "to" else "until", end, step)
-            if (numRangeElements < 0)
-              throw new IllegalArgumentException(description + ": seqs cannot contain more than Int.MaxValue elements.")
-
-            val terminalElement = start + numRangeElements * step
-
-            val isCommonCase = (start != Int.MinValue || end != Int.MinValue)
-
-            /*
-            if (step == 0) throw new IllegalArgumentException("step cannot be 0.")
-            else if (step == 1) {
-              var i = start
-
-              while (i </*=*/ end) {
-                // application
-                i += 1
-              }
-            } else if (step == -1) {
-              var i = start
-              while (i >/*=*/ end) {
-                // application
-                i -= 1
-              }
-            } else {
-              val gap = end.toLong - start.toLong
-              val isExact = gap % step == 0
-              val hasStub = isInclusive || !isExact
-              val longLength = gap / step + (if (hasStub) 1 else 0)
-              val isEmpty =
-              (start > end && step > 0) ||
-                (start < end && step < 0) ||
-                (start == end && !isInclusive)
-              val numRangeElements =
-                if (isEmpty) 0
-                else longLength
-              val terminalElement = start.toLong + numRangeElements * step
-
-              var i = start.toLong
-              while (i != terminalElement) {
-                // application
-                i += step
-              }
-            }
-            */
-            //if (isCommonCase)
-            q"""
-                $init
-                var $varName = $start
-                while($varName != $terminalElement) {
-                  $application
-                  $varName += $step
-                }
-              """
-            /*else
-              q"""
-                $init
-                var $valName = $start
-                var count = 0
-                while(count < $numRangeElements) {
-                  $application
-                  count += 1
-                  $valName += $step
-                }
-              """*/
-          }
           val (valName: TermName, application: Tree, init: Tree) =
             c.resetAllAttrs(fTree) match {
               // try to find literal anonymous functions
@@ -433,7 +352,7 @@ object SpeedMacros {
         buffer += element
       }
       //println(c.literal(range.toString).splice, buffer.toList, r.splice.iterator.toList, buffer.toList + "/" + r.splice.iterator.toList)
-      //assert(buffer.toList == r.splice.iterator.toList, buffer.toList + "/" + r.splice.iterator.toList)
+      assert(buffer.toList == r.splice.iterator.toList, buffer.toList + "/" + r.splice.iterator.toList)
       (buffer.toList, r.splice.iterator.toList)
     }
   }
