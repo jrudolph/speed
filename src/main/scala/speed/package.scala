@@ -32,6 +32,7 @@ package speed {
     def map[B](func: A ⇒ B): MappedRange[B]
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro SpeedMacros.foldLeftImpl[A, B]
 
+    def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1 = macro SpeedMacros.reduceImpl[A1]
     def sum[B >: A](implicit num: Numeric[B]): B = macro SpeedMacros.sumImpl[A, B]
   }
 
@@ -40,7 +41,7 @@ package speed {
 
     def map[U](func: Int ⇒ U): MappedRange[U]
     def flatMap[B](func: Int ⇒ MappedRange[B]): MappedRange[B]
-    //override def foreach[T](f: Int ⇒ T): Unit = macro SpeedMacros.foreachImpl[T]
-    //def size: Int = macro SpeedMacros.sizeImpl
+    def reduce(op: (Int, Int) ⇒ Int): Int = macro SpeedMacros.reduceImpl[Int]
+    def foldLeft[B](init: B)(f: (B, Int) ⇒ B): B = macro SpeedMacros.foldLeftImpl[Int, B]
   }
 }

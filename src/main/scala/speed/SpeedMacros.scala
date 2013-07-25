@@ -2,6 +2,7 @@ package speed
 
 import scala.reflect.macros.Context
 import scala.annotation.tailrec
+import scala.reflect.ClassTag
 
 object SpeedMacros {
   def trace(msg: String) {}
@@ -49,6 +50,43 @@ object SpeedMacros {
     import c.universe._
     c.Expr[B](q"${c.prefix.tree}.foldLeft(${num.tree}.zero)(${num.tree}.plus)")
   }
+  def reduceImpl[A1: c.WeakTypeTag](c: Context)(op: c.Expr[(A1, A1) ⇒ A1]): c.Expr[A1] = {
+    import c.universe._
+    c.Expr[A1] {
+      new Helper[c.type](c) with SpeedHelper {
+        def run: Tree = {
+          val accVar = c.fresh(newTermName("acc"))
+          val emptyVar = c.fresh(newTermName("empty"))
+          val AnonFunc2(v1, v2, application, funcInit) = extractAnonFunc2(op.tree)
+          def b(b: Boolean) = Literal(Constant(b))
+          val neutralA1 = neutralElement[A1]
+          val inits = Seq(
+            q"var $accVar = $neutralA1",
+            q"var $emptyVar = ${b(true)}",
+            funcInit)
+          val body =
+            q"""
+                if ($emptyVar) {
+                  $emptyVar = ${b(false)}
+                  $accVar = $v2
+                } else
+                  $accVar = {
+                    val $v1 = $accVar
+                    $application
+                  }
+              """
+
+          val result =
+            q"""
+              if ($emptyVar) throw new UnsupportedOperationException("Can't reduce empty range")
+              else $accVar
+            """
+
+          partiallyEvaluate(generateForCallChain(c.prefix.tree, inits, v2, body, result))
+        }
+      }.run
+    }
+  }
 
   def normalRangeConv(c: Context)(f: c.Expr[FastSteppedRange]): c.Expr[Range] =
     c.Expr[Range] {
@@ -56,7 +94,7 @@ object SpeedMacros {
 
         import c.universe._
 
-        override def run = {
+        def run = {
           val (start, end, by, inclusive) = matchConstructor(f.tree)
           if (inclusive) q"Range.inclusive($start, $end, $by)"
           else q"Range($start, $end, $by)"
@@ -70,7 +108,7 @@ object SpeedMacros {
 
         import c.universe._
 
-        override def run = f.tree match {
+        def run = f.tree match {
           case q"$expr.map[${ _ }]($mapFunc)" ⇒
             val (start, end, by, inclusive) = matchConstructor(expr)
 
@@ -477,6 +515,27 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
         AnonFunc2(newTermName("i1"), newTermName("i2"), q"$fun(i1, i2)", q"val $fun = $fTree")
     }
 
+  lazy val IntTag = c.weakTypeOf[Int]
+  lazy val LongTag = c.weakTypeOf[Long]
+  lazy val FloatTag = c.weakTypeOf[Float]
+  lazy val DoubleTag = c.weakTypeOf[Double]
+  lazy val ShortTag = c.weakTypeOf[Short]
+  lazy val ByteTag = c.weakTypeOf[Byte]
+  lazy val BooleanTag = c.weakTypeOf[Boolean]
+  lazy val CharTag = c.weakTypeOf[Char]
+  def neutralElement[A1: c.WeakTypeTag]: Tree =
+    lit(c.universe.weakTypeOf[A1] match {
+      case IntTag     ⇒ 0
+      case LongTag    ⇒ 0L
+      case FloatTag   ⇒ 0f
+      case DoubleTag  ⇒ 0d
+      case ShortTag   ⇒ 0.toShort
+      case ByteTag    ⇒ 0.toByte
+      case BooleanTag ⇒ false
+      case CharTag    ⇒ 0.toChar
+      case _          ⇒ null
+    })
+  def lit(v: Any) = Literal(Constant(v))
 }
 
 trait MethodHelper extends SpeedHelper { self: QuasiquoteCompat ⇒
@@ -487,4 +546,10 @@ abstract class Helper[C <: Context](val c: C) extends QuasiquoteCompat {
   import c.universe._
 
   def run: Tree
+
+  def runAndShow = {
+    val res = run
+    println(res)
+    res
+  }
 }
