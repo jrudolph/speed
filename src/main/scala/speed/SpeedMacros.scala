@@ -133,6 +133,39 @@ object SpeedMacros {
       (buffer.toList, r.splice.iterator.toList)
     }
   }
+
+  def arrayForeachImpl[T, U](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[Unit] =
+    c.Expr[Unit] {
+      val t =
+        new Helper[c.type](c) with SpeedHelper {
+
+          import c.universe._
+
+          override def run = {
+            val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
+
+            val array = c.prefix.tree match {
+              case q"$x.refArrayOps[$y]($array)" ⇒ array
+              case q"$x.wrapIntArray($array)"    ⇒ array
+            }
+            val arrayVar = c.fresh(newTermName("array"))
+            val idxVar = c.fresh(newTermName("idx"))
+            q"""
+            import speed._
+            $init
+            val $arrayVar = $array
+            (0 until $arrayVar.length).foreach { $idxVar ⇒
+               val $valName = $arrayVar($idxVar)
+               $application
+            }
+          """
+          }
+
+        }.run
+
+      println(s"Generated :$t")
+      t
+    }
 }
 
 trait SpeedHelper { self: QuasiquoteCompat ⇒
