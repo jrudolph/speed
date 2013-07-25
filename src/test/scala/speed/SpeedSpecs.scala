@@ -134,17 +134,20 @@ class SpeedSpecs extends Specification {
       "foldLeft" in {
         (1 to 1000).foldLeft(0)(_ + _) === (((1 to 1000): Range).sum)
       }
-      "reduce" in {
-        (1000 to 1).reduce(_ + _) must throwA[UnsupportedOperationException]
-        (1 to 1000).reduce(_ + _) === (1 to 1000).sum
-      }
-      "for mapped ranges" in {
+      "foldLeft for mapped ranges" in {
         (1 to 1000).map(i ⇒ i * i).foldLeft(0)(_ + _) === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
-
+      "sum" in {
+        (1 to 1000).sum === (((1 to 1000): Range).sum)
+      }
       "sum for mapped ranges" in {
         (1 to 1000).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
+      "reduce for mapped ranges" in {
+        (1000 to 1).reduce(_ + _) must throwA[UnsupportedOperationException]
+        (1 to 1000).map(1+).reduce(_ + _) === (2 to 1001).sum
+      }
+
       "double map" in {
         (1 to 1000).map(i ⇒ i).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
