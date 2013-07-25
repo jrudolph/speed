@@ -11,12 +11,12 @@ object SpeedMacros {
       new Helper[c.type](c) with MethodHelper {
         import c.universe._
 
-        override def run(fTree: Tree): Tree = {
-          val AnonFunc(valName, application, init) = extractAnonFunc(fTree)
+        def run: Tree = {
+          val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
 
           partiallyEvaluate(generateGeneral(start, end, by, inclusive, Seq(init), valName, application))
         }
-      }.run(f.tree)
+      }.run
 
     c.Expr[Unit](t)
   }
@@ -26,9 +26,9 @@ object SpeedMacros {
       new Helper[c.type](c) with SpeedHelper {
         import c.universe._
 
-        override def run(fTree: Tree): Tree = {
+        def run: Tree = {
           val accVar = c.fresh(newTermName("acc"))
-          val AnonFunc2(v1, v2, application, funcInit) = extractAnonFunc2(fTree)
+          val AnonFunc2(v1, v2, application, funcInit) = extractAnonFunc2(f.tree)
           val inits = Seq(q"var $accVar = ${init.tree}", funcInit)
           val body =
             q"""
@@ -40,7 +40,7 @@ object SpeedMacros {
 
           partiallyEvaluate(generateForCallChain(c.prefix.tree, inits, v2, body, q"$accVar"))
         }
-      }.run(f.tree)
+      }.run
 
     c.Expr[B](t)
   }
@@ -484,9 +484,6 @@ trait MethodHelper extends SpeedHelper { self: QuasiquoteCompat ⇒
 
 abstract class Helper[C <: Context](val c: C) extends QuasiquoteCompat {
   import c.universe._
-  type Tr = Tree
 
-  def run(fTree: Tree): Tree = ???
-  def run: Tree = ???
-  def old(fTree: Tr): Tr = ???
+  def run: Tree
 }
