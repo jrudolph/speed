@@ -59,9 +59,10 @@ object SpeedMacros {
           val emptyVar = c.fresh(newTermName("empty"))
           val AnonFunc2(v1, v2, application, funcInit) = extractAnonFunc2(op.tree)
           def b(b: Boolean) = Literal(Constant(b))
+          val a1Type = c.weakTypeOf[A1]
           val neutralA1 = neutralElement[A1]
           val inits = Seq(
-            q"var $accVar = $neutralA1",
+            q"var $accVar: $a1Type = $neutralA1",
             q"var $emptyVar = ${b(true)}",
             funcInit)
           val body =
