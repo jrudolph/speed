@@ -4,7 +4,7 @@ import org.specs2.mutable.Specification
 
 class SpeedSpecs extends Specification {
   "Speed macros" should {
-    "provide foreach with static bounds" in {
+    "provide Range.foreach with static bounds" in {
       "simple cases" in {
         val (a, b) = rangeForeach(0 to 15)
         a === b
@@ -47,7 +47,7 @@ class SpeedSpecs extends Specification {
         a === b
       }
     }
-    "provide foreach with dynamic bounds" in {
+    "provide Range.foreach with dynamic bounds" in {
       val start0 = 0
       "simple cases" in {
         val (a, b) = rangeForeach(start0 to 15)
@@ -86,7 +86,7 @@ class SpeedSpecs extends Specification {
       }
     }
 
-    "provide foreach with dynamic step" in {
+    "provide Range.foreach with dynamic step" in {
       val one = 1
       val minus1 = -1
       val two = 2
@@ -130,7 +130,7 @@ class SpeedSpecs extends Specification {
       }
     }
 
-    "provide foldLeft for mapped ranges" in {
+    "provide Range.map.foldLeft for mapped ranges" in {
       "simple" in {
         (1 to 1000).map(i ⇒ i * i).foldLeft(0)(_ + _) === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
@@ -155,11 +155,22 @@ class SpeedSpecs extends Specification {
         value === reference
       }
     }
+    "not (yet) compete with other Range functions" in {
+      "min" in {
+        (1000 to 1 by -1).min === 1
+      }
+    }
     "fast array access" in {
       var counter = 0
-      val array2 = Array.tabulate[Int](100)(identity)
-      for (x ← array2) counter += x
+      val array = Array.tabulate[Int](100)(identity)
+      for (x ← array) counter += x
       counter === (0 to 99).sum
+    }
+    "not (yet) compete with other Array functions" in {
+      val array2 = Array.tabulate[Int](100)(identity)
+      array2.par.map(_ + 1).sum === (1 to 100).sum
+      array2(5) === 5
+      array2.sum === (0 to 99).sum
     }
   }
 }
