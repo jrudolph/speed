@@ -34,14 +34,26 @@ package speed {
 
     def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1 = macro SpeedMacros.reduceImpl[A1]
     def sum[B >: A](implicit num: Numeric[B]): B = macro SpeedMacros.sumImpl[A, B]
+    def filter(p: A ⇒ Boolean): MappedRange[A]
+
+    // other interesting foldLeft based operators to implement:
+    // exists, forall, count
+    // others:
+    // find, filter
   }
 
   trait FastSteppedRange {
     final def foreach[T](f: Int ⇒ T): Unit = macro SpeedMacros.foreachImpl[T]
 
     def map[U](func: Int ⇒ U): MappedRange[U]
+    def filter(p: Int ⇒ Boolean): this.type
     def flatMap[B](func: Int ⇒ MappedRange[B]): MappedRange[B]
     def reduce(op: (Int, Int) ⇒ Int): Int = macro SpeedMacros.reduceImpl[Int]
     def foldLeft[B](init: B)(f: (B, Int) ⇒ B): B = macro SpeedMacros.foldLeftImpl[Int, B]
+    def sum(implicit num: Numeric[Int]): Int = macro SpeedMacros.sumImpl[Int, Int]
+    // filter
+
+    // others:
+    // reduceOption
   }
 }

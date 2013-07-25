@@ -196,6 +196,17 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
           """
 
         generateForCallChain(expr, init :+ mapInit, m1, body, blockExpr)
+      case q"$expr.filter($filterFunc)" ⇒
+        val AnonFunc(f1, filterApplication, filterInit) = extractAnonFunc(filterFunc)
+        val body =
+          q"""
+             if ($filterApplication) {
+               val $varName= $f1
+               $application
+             }
+          """
+
+        generateForCallChain(expr, init :+ filterInit, f1, body, blockExpr)
       case q"$expr.flatMap[${ _ }]($name => $rangeFunc)" ⇒
         val innerLoop =
           generateForCallChain(rangeFunc, Nil, varName, application, q"()")

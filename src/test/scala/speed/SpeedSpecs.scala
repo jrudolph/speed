@@ -166,6 +166,15 @@ class SpeedSpecs extends Specification {
         value === reference
       }
     }
+    "provide filter" in {
+      "simple cases" in {
+        (1 to 1000).filter(_ % 2 == 0).sum === ((1 to 1000): Range).filter(_ % 2 == 0).sum
+      }
+      "mapped" in {
+        (1 to 1000).map(_.toString).filter(_.length == 2).reduce(_ + _) ===
+          ((1 to 1000): Range).map(_.toString).filter(_.length == 2).reduce(_ + _)
+      }
+    }
     "not (yet) compete with other Range functions" in {
       "min" in {
         (1000 to 1 by -1).min === 1
