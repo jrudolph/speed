@@ -156,13 +156,10 @@ class SpeedSpecs extends Specification {
       }
     }
     "fast array access" in {
-      //val array: Array[AnyRef] = Array.tabulate[AnyRef](100)(x ⇒ x: java.lang.Integer)
-      //array.foreach(println)
-
-      import speed._
-      //val wrapIntArray = null
+      var counter = 0
       val array2 = Array.tabulate[Int](100)(identity)
-      array2.foreach(println)
+      for (x ← array2) counter += x
+      counter === (0 to 99).sum
     }
   }
 }

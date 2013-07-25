@@ -4,20 +4,19 @@ import scala.reflect.macros.Context
 import scala.annotation.tailrec
 
 object SpeedMacros {
-  def foreachImpl[T](c: Context)(f: c.Expr[Int ⇒ T]): c.Expr[Unit] = {
+  def trace(msg: String) {}
 
+  def foreachImpl[T](c: Context)(f: c.Expr[Int ⇒ T]): c.Expr[Unit] = {
     val t =
       new Helper[c.type](c) with MethodHelper {
         import c.universe._
 
         override def run(fTree: Tree): Tree = {
-
           val AnonFunc(valName, application, init) = extractAnonFunc(fTree)
 
           partiallyEvaluate(generateGeneral(start, end, by, inclusive, Seq(init), valName, application))
         }
       }.run(f.tree)
-    //trace(s"Result for ${c.prefix} was: $t")
 
     c.Expr[Unit](t)
   }
@@ -26,10 +25,6 @@ object SpeedMacros {
     val t =
       new Helper[c.type](c) with SpeedHelper {
         import c.universe._
-
-        override def trace(msg: String) {
-          println(msg)
-        }
 
         override def run(fTree: Tree): Tree = {
           val accVar = c.fresh(newTermName("acc"))
@@ -45,45 +40,16 @@ object SpeedMacros {
 
           partiallyEvaluate(generateForCallChain(c.prefix.tree, inits, v2, body, q"$accVar"))
         }
-
-        /*   c.prefix.tree match {
-          case q"$expr.map[${ _ }]($mapFunc)" ⇒
-            val (start, end, by, inclusive) = matchConstructor(expr)
-
-            val accVar = c.fresh(newTermName("acc"))
-
-            val AnonFunc(m1, mapApplication, mapIBlock) = extractAnonFunc(mapFunc)
-            val AnonFunc2(v1, v2, application, iBlock) = extractAnonFunc2(fTree)
-            val initBlock = Seq(q"var $accVar = ${init.tree}", iBlock, mapIBlock)
-            val body =
-              q"""
-                $accVar = {
-                  val $v1 = $accVar
-                  val $v2 = $mapApplication
-                  $application
-                }
-              """
-
-            generateForPrefix(start, end, by, inclusive, initBlock, m1, body, q"$accVar")
-        }*/
       }.run(f.tree)
 
-    println(s"Result for ${c.prefix} was: $t")
     c.Expr[B](t)
   }
 
   def sumImpl[A, B >: A](c: Context { type PrefixType = MappedRange[A] })(num: c.Expr[Numeric[B]]): c.Expr[B] = {
     import c.universe._
     c.Expr[B](q"${c.prefix.tree}.foldLeft(${num.tree}.zero)(${num.tree}.plus)")
-    //reify(c.prefix.splice.foldLeft(num.splice.zero)(num.splice.plus))
   }
 
-  /*def sizeImpl(c: Context): c.Expr[Int] = c.Expr[Int] {
-    new Helper[c.type](c) with MethodHelper {
-      import c.universe._
-      override def run = q"($from - $to) / $by"
-    }.run
-  }*/
   def normalRangeConv(c: Context)(f: c.Expr[FastSteppedRange]): c.Expr[Range] =
     c.Expr[Range] {
       new Helper[c.type](c) with SpeedHelper {
@@ -162,8 +128,6 @@ object SpeedMacros {
           }
 
         }.run
-
-      println(s"Generated :$t")
       t
     }
 }
@@ -195,19 +159,8 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
 
         generateForCallChain(expr, init :+ mapInit, m1, body, blockExpr)
       case q"$expr.flatMap[${ _ }]($name => $rangeFunc)" ⇒
-        //val AnonFunc(m1, mapApplication, mapInit) = extractAnonFunc(flatmapFunc)
-
         val innerLoop =
           generateForCallChain(rangeFunc, Nil, varName, application, q"()")
-        println(s"Inner loop was: $innerLoop")
-
-        /*
-        val body =
-          q"""
-            val $varName = $mapApplication
-            $application
-          """
-          */
 
         generateForCallChain(expr, init, name.name, innerLoop, blockExpr)
       case expr ⇒
@@ -306,7 +259,7 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
   def trace(msg: String): Unit = {}
 
   /**
-   * This partial evaluator has no sensible notion of lexical scopes, so be careful
+   * This partial evaluator has only a crude notion of lexical scopes, so be careful
    */
   class ConstantFolder(initEnv: Map[Symbol, Constant] = Map.empty) extends Transformer {
     var environmentStack = collection.immutable.Stack[Map[Symbol, Constant]](Map.empty)
@@ -501,6 +454,7 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
     c.resetAllAttrs(fTree) match {
       // try to find literal anonymous functions
       case q"( $i => $body )"             ⇒ AnonFunc(i.name, q"{ $body }", q"")
+      //case q"( ($i: ${ _ }) => $body )"   ⇒ AnonFunc(i.asInstanceOf[ValDef].name, q"{ $body }", q"")
       // this matches partial evaluation (like `println _`)
       case Block(Nil, q"( $i => $body )") ⇒ AnonFunc(i.name, q"{ $body }", q"")
       case _ ⇒
