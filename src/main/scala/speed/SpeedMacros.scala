@@ -458,6 +458,7 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
       // this matches partial evaluation (like `println _`)
       case Block(Nil, q"( $i => $body )") ⇒ AnonFunc(i.name, q"{ $body }", q"")
       case _ ⇒
+        c.warning(fTree.pos, s"Couldn't extract anonymous function implementation here. '$fTree'")
         val fun = c.fresh(newTermName("funInit"))
         val iVar = c.fresh(newTermName("i"))
         AnonFunc(iVar, q"$fun($iVar)", q"val $fun = $fTree")
