@@ -182,10 +182,15 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
     tree match {
       case q"$expr.map[${ _ }]($mapFunc)" ⇒
         val AnonFunc(m1, mapApplication, mapInit) = extractAnonFunc(mapFunc)
+        val tempVar = c.fresh(newTermName("temp"))
         val body =
           q"""
-            val $varName = $mapApplication
-            $application
+            val $tempVar = $mapApplication
+
+            {
+              val $varName = $tempVar
+              $application
+            }
           """
 
         generateForCallChain(expr, init :+ mapInit, m1, body, blockExpr)

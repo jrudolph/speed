@@ -138,7 +138,7 @@ class SpeedSpecs extends Specification {
         (1 to 1000).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
       "double map" in {
-        (1 to 1000).map(j ⇒ j).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+        (1 to 1000).map(i ⇒ i).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
       "flatMap" in {
         val reference =
