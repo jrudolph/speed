@@ -222,53 +222,41 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
     val startVar = c.fresh(newTermName("start"))
     val endVar = c.fresh(newTermName("end"))
     val stepVar = c.fresh(newTermName("step"))
-    val deciderVar = c.fresh(newTermName("decider"))
 
-    /*val deciderVar =
-              partiallyEvaluate(q"""
-              val $startVar = $start
-              val $endVar = $end
-              val $stepVar = $step
-              $stepVar match {
-                  case 0 => throw new IllegalArgumentException("step cannot be 0.")
-                  case 1 => 1
-                  case -1 => -1
-                  case _ =>
-                    if ($stepVar > 0)
-                      if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
-                      else 1
-                    else
-                      if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
-                      else -1
-                }
-              """) match {
-                case l @ Literal(Constant(x)) ⇒ l
-                case x@_                        ⇒ Literal(Constant(0))
-              }*/
+    // a variable whose value decides which implementation to use
+    //  1: count up and compare with `<` / `<=`
+    // -1: count down and compare with `>` / `>=`
+    //  0: safe version, if abs(step) != 1, to make sure not to overflow the bounds
+    // we invoke that here eagerly and use our handy partial evaluation implementation
+    // to figure out if we can decide now or not
+    // if we can't figure it out now, we choose the variant which always works
+    val deciderVar =
+      partiallyEvaluate(
+        q"""
+          val $startVar = $start
+          val $endVar = $end
+          val $stepVar = $step
+          $stepVar match {
+            case 0 => throw new IllegalArgumentException("step cannot be 0.")
+            case 1 => 1
+            case -1 => -1
+            case _ =>
+              if ($stepVar > 0)
+                if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
+                else 1
+              else
+                if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
+                else -1
+          }""") match {
+          case l @ Literal(Constant(x)) ⇒ l
+          case x @ _                    ⇒ Literal(Constant(0))
+        }
 
     q"""
       ..$init
       val $startVar = $start
       val $endVar = $end
       val $stepVar = $step
-
-      // a variable whose value decides which implementation to use
-      //  1: count up and compare with `<` / `<=`
-      // -1: count down and compare with `>` / `>=`
-      //  0: safe version, if abs(step) != 1, to make sure not to overflow the bounds
-      val $deciderVar =
-        $stepVar match {
-          case 0 => throw new IllegalArgumentException("step cannot be 0.")
-          case 1 => 1
-          case -1 => -1
-          case _ =>
-            if ($stepVar > 0)
-              if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
-              else 1
-            else
-              if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
-              else -1
-        }
 
       $deciderVar match {
         case 1 => // count up
@@ -278,6 +266,7 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
             $application
             $varName += $stepVar
           }
+
         case -1 => // count down
           var $varName = $startVar
           while ($varName $downOp $endVar) {
