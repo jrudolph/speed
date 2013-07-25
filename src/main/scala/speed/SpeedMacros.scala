@@ -288,11 +288,11 @@ trait SpeedHelper { self: QuasiquoteCompat ⇒
         }
 
       tree match {
-        /*case Block(stats, expr) ⇒
-                  pushContext()
-                  val res = super.transform(tree)
-                  popContext()
-                  res*/
+        case Block(stats, expr) ⇒
+          pushContext()
+          val res = super.transform(tree)
+          popContext()
+          res
         case v @ Ident(name) if envContains(v.symbol) ⇒
           trace(s"Replaced constant binding for $name")
           Literal(lookup(v.symbol))
