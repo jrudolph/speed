@@ -33,11 +33,11 @@ object SpeedMacros {
           val inits = Seq(q"var $accVar = ${init.tree}", funcInit)
           val body =
             q"""
-                $accVar = {
-                  val $v1 = $accVar
-                  $application
-                }
-              """
+              $accVar = {
+                val $v1 = $accVar
+                $application
+              }
+            """
 
           partiallyEvaluate(generateForCallChain(c.prefix.tree, inits, v2, body, q"$accVar"))
         }
