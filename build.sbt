@@ -44,3 +44,7 @@ cleanKeepFiles in Test := Nil
 clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean
 
 compile in Test <<= (compile in Test).dependsOn(clean in Test)
+
+scalacOptions ++= Seq(
+  "-unchecked", "-language:_"
+)

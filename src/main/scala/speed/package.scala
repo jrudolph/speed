@@ -39,7 +39,7 @@ package speed {
     // other interesting foldLeft based operators to implement:
     // exists, forall, count
     // others:
-    // find, filter
+    // find
   }
 
   trait FastSteppedRange {
@@ -51,7 +51,6 @@ package speed {
     def reduce(op: (Int, Int) ⇒ Int): Int = macro SpeedMacros.reduceImpl[Int]
     def foldLeft[B](init: B)(f: (B, Int) ⇒ B): B = macro SpeedMacros.foldLeftImpl[Int, B]
     def sum(implicit num: Numeric[Int]): Int = macro SpeedMacros.sumImpl[Int, Int]
-    // filter
 
     // others:
     // reduceOption
