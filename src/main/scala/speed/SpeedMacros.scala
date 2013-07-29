@@ -225,6 +225,7 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
     val startVar = c.fresh(newTermName("start"))
     val endVar = c.fresh(newTermName("end"))
     val stepVar = c.fresh(newTermName("step"))
+    val terminalElementVar = c.fresh(newTermName("terminalElement"))
 
     // a variable whose value decides which implementation to use
     //  1: count up and compare with `<` / `<=`
@@ -278,21 +279,23 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
           }
 
         case 0 => // don't count but play it safe because of potential overflows at the integer bounds
-          val gap = $endVar.toLong - $startVar.toLong
-          val isExact = gap % $stepVar == 0
-          val hasStub = $isInclusive || !isExact
-          val longLength = gap / $stepVar + (if (hasStub) 1 else 0)
-          val isEmpty =
-          ($startVar > $endVar && $stepVar > 0) ||
-            ($startVar < $endVar && $stepVar < 0) ||
-            ($startVar == $endVar && !$isInclusive)
-          val numRangeElements =
-            if (isEmpty) 0
-            else longLength
-          val terminalElement = ($startVar.toLong + numRangeElements * $stepVar).toInt
+          val $terminalElementVar = {
+            val gap = $endVar.toLong - $startVar.toLong
+            val isExact = gap % $stepVar == 0
+            val hasStub = $isInclusive || !isExact
+            val longLength = gap / $stepVar + (if (hasStub) 1 else 0)
+            val isEmpty =
+            ($startVar > $endVar && $stepVar > 0) ||
+              ($startVar < $endVar && $stepVar < 0) ||
+              ($startVar == $endVar && !$isInclusive)
+            val numRangeElements =
+              if (isEmpty) 0
+              else longLength
+            ($startVar.toLong + numRangeElements * $stepVar).toInt
+          }
 
           var $varName = $startVar
-          while ($varName != terminalElement) {
+          while ($varName != $terminalElementVar) {
             $application
             $varName += $stepVar
           }
