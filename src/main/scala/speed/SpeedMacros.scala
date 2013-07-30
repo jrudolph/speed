@@ -311,10 +311,10 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
   def extractAnonFunc(fTree: Tree): AnonFunc =
     c.resetAllAttrs(fTree) match {
       // try to find literal anonymous functions
-      case q"( $i => $body )"             ⇒ AnonFunc(i.name, q"{ $body }", q"")
+      case q"( $i => $body )"             ⇒ AnonFunc(i.name, q"{ $body }: @speed.dontfold()", q"")
       //case q"( ($i: ${ _ }) => $body )"   ⇒ AnonFunc(i.asInstanceOf[ValDef].name, q"{ $body }", q"")
       // this matches partial evaluation (like `println _`)
-      case Block(Nil, q"( $i => $body )") ⇒ AnonFunc(i.name, q"{ $body }", q"")
+      case Block(Nil, q"( $i => $body )") ⇒ AnonFunc(i.name, q"{ $body }: @speed.dontfold()", q"")
       case _ ⇒
         c.warning(fTree.pos, s"Couldn't extract anonymous function implementation here. '$fTree'")
         val fun = c.fresh(newTermName("funInit"))
@@ -327,9 +327,9 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
   def extractAnonFunc2(fTree: Tree): AnonFunc2 =
     c.resetAllAttrs(fTree) match {
       // try to find literal anonymous functions
-      case q"( ($i1, $i2) => $body )"             ⇒ AnonFunc2(i1.name, i2.name, q"{ $body }", q"")
+      case q"( ($i1, $i2) => $body )"             ⇒ AnonFunc2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
       // this matches partial evaluation (like `println _`)
-      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ AnonFunc2(i1.name, i2.name, q"{ $body }", q"")
+      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ AnonFunc2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
       case _ ⇒
         val fun = c.fresh(newTermName("funInit"))
         AnonFunc2(newTermName("i1"), newTermName("i2"), q"$fun(i1, i2)", q"val $fun = $fTree")

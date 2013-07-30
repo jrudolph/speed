@@ -147,7 +147,6 @@ class SpeedSpecs extends Specification {
         (1000 to 1).reduce(_ + _) must throwA[UnsupportedOperationException]
         (1 to 1000).map(1+).reduce(_ + _) === (2 to 1001).sum
       }
-
       "double map" in {
         (1 to 1000).map(i ⇒ i).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
       }
@@ -164,6 +163,16 @@ class SpeedSpecs extends Specification {
           } yield i * j).sum
 
         value === reference
+      }
+      "don't constant fold into applications" in {
+        (1 to 1000).map { i ⇒
+          var j = 1
+          def set(): Boolean = { j = i; true }
+          // our peephole optimization is too aggressive to be used generally
+          val result = set() || true
+
+          j
+        }.sum === (1 to 1000).sum
       }
     }
     "provide filter" in {

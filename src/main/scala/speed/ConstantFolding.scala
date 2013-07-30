@@ -38,6 +38,18 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
         }
 
       tree match {
+        case q"$x: ${ tpe: TypeTree }" ⇒
+          tpe.original match {
+            case tq"$t @speed.dontfold()" ⇒
+              val x_1 = RemoveDontFold.transform(t)
+              val t_1 = RemoveDontFold.transform(t)
+              val res = q"$x_1: $t_1"
+              res
+            case t ⇒
+              val inner = transform(x)
+              q"$inner: $tpe"
+          }
+
         case Block(stats, expr) ⇒
           pushContext()
           val res = super.transform(tree)
@@ -76,6 +88,12 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
         // There's a lots of code duplication coming. The reason is that
         // this is the easiest way of making sure that we exactly match
         // the primitive implicit conversions Scala is also doing.
+        //
+        // It would be possible to a much more general algorithm here:
+        // for every binary operation that is pure
+        //   * generate the tree representing the operation
+        //   * evaluate the operation
+        //   * insert the result
         case q"$e1 + $e2" ⇒
           binaryOp(e1, e2, newTermName("$plus")) {
             case (i1: Int, i2: Int)   ⇒ i1 + i2
@@ -198,6 +216,14 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
 
         case x ⇒ super.transform(x)
       }
+    }
+  }
+
+  object RemoveDontFold extends Transformer {
+    override def transform(tree: Tree): Tree = tree match {
+      case tq"$t @speed.dontfold()"  ⇒ transform(t)
+      case q"$x: ${ tpe: TypeTree }" ⇒ transform(tpe.original)
+      case _                         ⇒ super.transform(tree)
     }
   }
 }
