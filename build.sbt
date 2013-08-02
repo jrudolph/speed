@@ -48,3 +48,5 @@ compile in Test <<= (compile in Test).dependsOn(clean in Test)
 scalacOptions ++= Seq(
   "-unchecked", "-language:_"
 )
+
+unmanagedBase in Test <<= baseDirectory / "test-lib"
