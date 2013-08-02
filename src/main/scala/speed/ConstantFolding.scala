@@ -26,10 +26,12 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
     def popContext() = environmentStack = environmentStack.pop
 
     override def transform(tree: Tree): Tree = {
-      def binaryOp(e1: Tree, e2: Tree, op: TermName)(calc: ((Any, Any)) ⇒ Any) =
+      def binaryOp(e1: Tree, e2: Tree, op: TermName, ifOneIsConstant: Boolean = false)(calc: PartialFunction[(Any, Any), Any]) =
         (transform(e1), transform(e2)) match {
           case (Literal(Constant(a)), Literal(Constant(b))) ⇒ Literal(Constant(calc((a, b))))
-          case (x1, x2)                                     ⇒ q"$x1 $op $x2"
+          case (Literal(Constant(a)), b) if ifOneIsConstant && calc.isDefinedAt((a, b)) ⇒ Literal(Constant(calc((a, b))))
+          case (a, Literal(Constant(b))) if ifOneIsConstant && calc.isDefinedAt((a, b)) ⇒ Literal(Constant(calc((a, b))))
+          case (x1, x2) ⇒ q"$x1 $op $x2"
         }
       def unaryOp(e1: Tree, op: TermName)(calc: Any ⇒ Any) =
         transform(e1) match {
@@ -124,7 +126,10 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
             case (i1: Long, i2: Long) ⇒ i1 / i2
           }
         case q"$e1 % $e2" ⇒
-          binaryOp(e1, e2, newTermName("$percent")) {
+          binaryOp(e1, e2, newTermName("$percent"), ifOneIsConstant = true) {
+            // this doesn't check for pureness of the first expression
+            case (_, 1)               ⇒ 0
+            case (_, 1L)              ⇒ 0L
             case (i1: Int, i2: Int)   ⇒ i1 % i2
             case (i1: Int, i2: Long)  ⇒ i1 % i2
             case (i1: Long, i2: Int)  ⇒ i1 % i2
