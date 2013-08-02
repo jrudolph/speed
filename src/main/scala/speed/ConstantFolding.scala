@@ -224,10 +224,11 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
     }
   }
 
+  /** Removes the annotation from nested trees */
   object RemoveDontFold extends Transformer {
     override def transform(tree: Tree): Tree = tree match {
       case tq"$t @speed.dontfold()"  ⇒ transform(t)
-      case q"$x: ${ tpe: TypeTree }" ⇒ transform(tpe.original)
+      case q"$x: ${ tpe: TypeTree }" ⇒ q"$x: ${transform(tpe.original)}"
       case _                         ⇒ super.transform(tree)
     }
   }
