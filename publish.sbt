@@ -11,8 +11,8 @@ publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
 pomExtra :=
-  Helpers.generatePomExtra("git@github.com:jrudolph/sbt-dependency-graph.git",
-                           "scm:git:git@github.com:jrudolph/sbt-dependency-graph.git",
+  Helpers.generatePomExtra("git@github.com:jrudolph/speed.git",
+                           "scm:git:git@github.com:jrudolph/speed.git",
                            "jrudolph", "Johannes Rudolph")
 
 useGpg := true
