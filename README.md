@@ -55,6 +55,8 @@ Runtime (smaller is better, reference is an equivalent while loop)
 |[mapped summing](#mapped-summing)     | 100 % | 96.12 % | 4974.68 %
 |[array foreach counting](#array-foreach-counting) | 100 % | 99.48 % | 439.40 %
 
+(Don't be fooled, values < 100 % are most likely not significant but I'm including them here
+ anyways just for the giggles. :laughing:)
 
 ### Foreach counting
 
