@@ -237,23 +237,21 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
     val deciderVar =
       foldConstants(
         q"""
-          val $startVar = $start
-          val $endVar = $end
-          val $stepVar = $step
-          $stepVar match {
+          $step match {
             case 0 => throw new IllegalArgumentException("step cannot be 0.")
             case 1 => 1
             case -1 => -1
             case _ =>
-              if ($stepVar > 0)
-                if ($endVar.toLong + $stepVar > Int.MaxValue) 0 // overflow looming
+              if ($step > 0)
+                if ($end.toLong + $step > Int.MaxValue) 0 // overflow looming
                 else 1
               else
-                if ($endVar.toLong + $stepVar < Int.MinValue) 0 // overflow looming
+                if ($end.toLong + $step < Int.MinValue) 0 // overflow looming
                 else -1
           }""") match {
-          case l @ Literal(Constant(x)) ⇒ l
-          case x @ _                    ⇒ Literal(Constant(0))
+          case l @ Literal(Constant(x))           ⇒ l
+          case Block(_, l @ Literal(Constant(x))) ⇒ l
+          case x @ _                              ⇒ Literal(Constant(0))
         }
 
     q"""
