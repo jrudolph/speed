@@ -96,6 +96,7 @@ What's missing?
 
 Much.
 
+ * support for putting our special ranges into vals and use them later
  * proper testing
  * support for more Array methods
  * support for other Array types than `Array[Int]`
@@ -124,3 +125,5 @@ Previous work
 
 [spire]: https://github.com/non/spire
 [scalaxy]: https://github.com/ochafik/Scalaxy
+
+[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/fd91a42ebd2f69382ea34cfc2a09d9ed "githalytics.com")](http://githalytics.com/jrudolph/speed)
