@@ -1,13 +1,13 @@
 import speed._
 ==============
-from the hot shores of the black forest :cake:
-
-![Yo dawg, we heard you like your scala fast, so we put code in yo' code so it loops while it loops](http://i.imgur.com/fAZMT1J.png)
+:cake: from the hot shores of the black forest :cake:
 
 Install
 -------
 
 ```
+resolvers += Opts.resolver.sonatypeReleases
+
 libraryDependencies += "net.virtual-void" %% "speed" % "12" % "provided"
 ```
 
@@ -30,6 +30,17 @@ or
 import speed._
 (1 to 1000).map(i ⇒ i * i).sum
 ```
+
+How?
+----
+
+In the words of the master of enrichment:
+
+
+![Yo dawg, we heard you like your scala fast, so we put code in yo' code so it loops while it loops](http://i.imgur.com/fAZMT1J.png)
+
+Macros.
+
 
 How much fasta?
 ---------------
@@ -79,3 +90,37 @@ var counter = 0
 for (x ← array) counter += x * x
 counter
 ```
+
+What's missing?
+---------------
+
+Much.
+
+ * proper testing
+ * support for more Array methods
+ * support for other Array types than `Array[Int]`
+
+
+Should I use it in production?
+------------------------------
+
+Look into the eyes of your favorite car dealer, again, and decide yo'self:
+
+![Yo dawg, we heard you like your scala fast, so we put code in yo' code so it loops while it loops](http://i.imgur.com/fAZMT1J.png)
+
+
+Extra goodies
+-------------
+
+ * example of using quasiquotes for 2.10.2 macros
+ * a stub implementation for constant folding to simplify generated trees if possible
+
+
+Previous work
+-------------
+
+ * [spire's][spire] cfor
+ * [scalaxy][scalaxy] loops
+
+[spire]: https://github.com/non/spire
+[scalaxy]: https://github.com/ochafik/Scalaxy
