@@ -234,7 +234,7 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
     // we invoke that here eagerly and use our handy partial evaluation implementation
     // to figure out if we can decide now or not
     // if we can't figure it out now, we choose the variant which always works
-    val deciderVar =
+    val decider =
       foldConstants(
         q"""
           $step match {
@@ -249,34 +249,41 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
                 if ($end.toLong + $step < Int.MinValue) 0 // overflow looming
                 else -1
           }""") match {
-          case l @ Literal(Constant(x))           ⇒ l
-          case Block(_, l @ Literal(Constant(x))) ⇒ l
-          case x @ _                              ⇒ Literal(Constant(0))
+          case l @ Literal(Constant(x))           ⇒ x
+          case Block(_, l @ Literal(Constant(x))) ⇒ x
+          case x @ _                              ⇒ 0
         }
 
-    q"""
-      ..$init
-      val $startVar = $start
-      val $endVar = $end
-      val $stepVar = $step
 
-      $deciderVar match {
-        case 1 => // count up
-          var $varName = $startVar
+    val body = decider match {
+      case 1 ⇒ // count up
+        q"""
+          var $varName = $start
+          val $endVar = $end
+          val $stepVar = $step
 
           while ($varName $upOp $endVar) {
             $application
             $varName += $stepVar
           }
+        """
+      case -1 ⇒ // count down
+        q"""
+          var $varName = $start
+          val $endVar = $end
+          val $stepVar = $step
 
-        case -1 => // count down
-          var $varName = $startVar
           while ($varName $downOp $endVar) {
             $application
             $varName += $stepVar
           }
+        """
+      case 0 ⇒
+        q"""
+          val $startVar = $start
+          val $endVar = $end
+          val $stepVar = $step
 
-        case 0 => // don't count but play it safe because of potential overflows at the integer bounds
           val $terminalElementVar = {
             val gap = $endVar.toLong - $startVar.toLong
             val isExact = gap % $stepVar == 0
@@ -297,7 +304,14 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
             $application
             $varName += $stepVar
           }
-      }
+        """
+    }
+
+    q"""
+      ..$init
+
+      $body
+
       $blockExpr
     """
   }
