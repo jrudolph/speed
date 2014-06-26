@@ -159,8 +159,8 @@ object SpeedMacros {
             import speed._
             $init
             val $arrayVar = $array
-            (0 until $arrayVar.length).foreach { $idxVar ⇒
-               val $valName = $arrayVar($idxVar)
+            (0 until $arrayVar.length).foreach { idx ⇒ // FIXME: is this hygienic?
+               val $valName = $arrayVar(idx)
                $application
             }
           """
@@ -253,7 +253,6 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
           case Block(_, l @ Literal(Constant(x))) ⇒ x
           case x @ _                              ⇒ 0
         }
-
 
     val body = decider match {
       case 1 ⇒ // count up
