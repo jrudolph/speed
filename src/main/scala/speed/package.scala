@@ -9,6 +9,7 @@ package object speed {
   implicit class arrayOps[T](val array: Array[T]) {
     def foreach[U](f: T ⇒ U): Unit = macro SpeedMacros.arrayOpImpl[T, U, Unit]
     def map[U](f: T ⇒ U): MappedRange[U] = macro SpeedMacros.arrayOpImpl[T, U, Array[U]]
+    def flatMap[B](f: T ⇒ MappedRange[B]): MappedRange[B] = macro SpeedMacros.arrayOpImpl[T, B, Array[B]]
     def filter(f: T ⇒ Boolean): MappedRange[T] = macro SpeedMacros.arrayOpImpl[T, Boolean, Array[T]]
     def sum(implicit num: Numeric[T]): T = ??? //macro SpeedMacros.arrayTerminalOpImpl
   }
@@ -17,6 +18,7 @@ package object speed {
   val longArrayOps = null
   val wrapIntArray = null
   val wrapLongArray = null
+  val wrapRefArray = null
   val genericArrayOps = null
   val genericWrapArray = null
 
