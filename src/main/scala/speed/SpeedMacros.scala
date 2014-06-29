@@ -15,7 +15,7 @@ object SpeedMacros {
         def run: Tree = {
           val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
 
-          foldConstants(generateGeneral(start, end, by, inclusive, Seq(init), valName, application))
+          finish(generateGeneral(start, end, by, inclusive, Seq(init), valName, application))
         }
       }.run
 
@@ -39,7 +39,7 @@ object SpeedMacros {
               }
             """
 
-          foldConstants(generateForCallChain(c.prefix.tree, inits, v2, body, q"$accVar"))
+          finish(generateForCallChain(c.prefix.tree, inits, v2, body, q"$accVar"))
         }
       }.run
 
@@ -83,7 +83,7 @@ object SpeedMacros {
               else $accVar
             """
 
-          foldConstants(generateForCallChain(c.prefix.tree, inits, v2, body, result))
+          finish(generateForCallChain(c.prefix.tree, inits, v2, body, result))
         }
       }.run
     }

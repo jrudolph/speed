@@ -1,27 +1,31 @@
 package speed
 
+import scala.util.control.NonFatal
+
 trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
   import c.universe._
 
+  def finish(tree: Tree): Tree = c.resetAllAttrs(foldConstants(tree))
+
   def foldConstants(tree: Tree): Tree = {
     trace(s"Input to partially: $tree")
-    c.resetAllAttrs(new ConstantFolder().transform(c.typeCheck(c.resetAllAttrs(tree))))
+    new ConstantFolder().transform(tree)
   }
 
   /**
    * This constant folder has only a crude notion of lexical scopes, so be careful
    */
-  class ConstantFolder(initEnv: Map[Symbol, Constant] = Map.empty) extends Transformer {
-    var environmentStack = collection.immutable.Stack[Map[Symbol, Constant]](Map.empty)
+  class ConstantFolder(initEnv: Map[Name, Constant] = Map.empty) extends Transformer {
+    var environmentStack = collection.immutable.Stack[Map[Name, Constant]](Map.empty)
 
-    def createBinding(sym: Symbol, value: Constant): Unit = {
+    def createBinding(sym: Name, value: Constant): Unit = {
       val top = environmentStack.head
       assert(!top.contains(sym))
       environmentStack = environmentStack.pop.push(top + (sym -> value))
     }
 
-    def envContains(sym: Symbol): Boolean = environmentStack.exists(_.contains(sym))
-    def lookup(sym: Symbol): Constant = environmentStack.find(_.contains(sym)).get(sym)
+    def envContains(sym: Name): Boolean = environmentStack.exists(_.contains(sym))
+    def lookup(sym: Name): Constant = environmentStack.find(_.contains(sym)).get(sym)
     def pushContext() = environmentStack = environmentStack.push(Map.empty)
     def popContext() = environmentStack = environmentStack.pop
 
@@ -40,19 +44,27 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
         }
 
       tree match {
+        case q"$x: ($t @speed.dontfold)" ⇒
+          trace(s"Matched type ascription annotation: $x")
+          val x_1 = RemoveDontFold.transform(x)
+          val t_1 = RemoveDontFold.transform(t)
+          q"$x_1: $t_1"
+        case q"$x: @speed.dontfold" ⇒
+          trace(s"Matched plain ascription: $x")
+          RemoveDontFold.transform(x)
         case q"$x: ${ tpe: TypeTree }" ⇒
+          trace(s"Matched TypeTree ascription: $x $tpe ")
           tpe.original match {
             case tq"$t @speed.dontfold()" ⇒
-              val x_1 = RemoveDontFold.transform(t)
+              val x_1 = RemoveDontFold.transform(x)
               val t_1 = RemoveDontFold.transform(t)
-              val res = q"$x_1: $t_1"
-              res
+              q"$x_1: $t_1"
             case t ⇒
               val inner = transform(x)
               q"$inner: $tpe"
           }
 
-        case Block(stats, expr) ⇒
+        case _: Block ⇒
           pushContext()
           val res = super.transform(tree)
           popContext()
@@ -60,16 +72,17 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
             case Block(Nil, l: Literal) ⇒ l
             case _                      ⇒ res
           }
-        case v @ Ident(name) if envContains(v.symbol) ⇒
+        case v @ Ident(name) if envContains(name) ⇒
           trace(s"Replaced constant binding for $name")
-          Literal(lookup(v.symbol))
+          Literal(lookup(name))
 
         case v @ q"val $x = $expr" ⇒
+          trace(s"Modifiers for $v: ${v.asInstanceOf[ValDef].mods} ${expr.productPrefix}")
           //trace(s"Trying to figure out value of $x ($expr), env has values for ${env.keys.mkString(", ")}")
           transform(expr) match {
             case lit @ Literal(constant) ⇒
-              trace(s"Found literal binding for ${v.symbol}: $constant")
-              createBinding(v.symbol, constant)
+              trace(s"Found literal binding for $x (${v.symbol}): $constant")
+              createBinding(x, constant)
               q""
             case expr ⇒
               q"val $x = $expr"
@@ -227,9 +240,10 @@ trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
   /** Removes the annotation from nested trees */
   object RemoveDontFold extends Transformer {
     override def transform(tree: Tree): Tree = tree match {
-      case tq"$t @speed.dontfold()"  ⇒ transform(t)
-      case q"$x: ${ tpe: TypeTree }" ⇒ q"$x: ${transform(tpe.original)}"
-      case _                         ⇒ super.transform(tree)
+      case tq"$t @speed.dontfold()"    ⇒ transform(t)
+      case q"$x: ($t @speed.dontfold)" ⇒ q"$x: $t"
+      case q"$x: ${ tpe: TypeTree }"   ⇒ q"$x: ${transform(tpe.original)}"
+      case _                           ⇒ super.transform(tree)
     }
   }
 }
