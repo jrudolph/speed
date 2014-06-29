@@ -20,6 +20,8 @@ package object speed {
   implicit def mappedRange[U](f: MappedRange[U]): Seq[U] = macro SpeedMacros.mappedRangeImpl[U]
 
   def rangeForeach(range: Any): (List[Int], List[Int]) = macro SpeedMacros.rangeForeachImpl
+
+  def show[T](t: T): T = macro SpeedMacros.showTree[T]
 }
 
 package speed {

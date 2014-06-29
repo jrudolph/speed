@@ -169,6 +169,8 @@ object SpeedMacros {
         }.run
       t
     }
+
+  def showTree[T](c: Context)(t: c.Expr[T]): c.Expr[T] = { println(s"Show '${c.universe.show(t)}'"); t }
 }
 
 trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
