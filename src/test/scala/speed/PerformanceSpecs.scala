@@ -211,6 +211,6 @@ class PerformanceSpecs extends Specification {
 
     println(f"|$nameString%s | 100 %% | $speedySpeedup%5.2f %% | $rangeSpeedup%5.2f %%")
 
-    !result.significantlyDifferent || result.factor > 0.99 must beTrue.or(failure("Wasn't matching as fast but " + result))
+    (!result.significantlyDifferent || result.factor > 0.99) must beTrue.setMessage("Wasn't matching as fast but " + result)
   }
 }
