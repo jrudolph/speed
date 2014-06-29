@@ -194,6 +194,14 @@ class PerformanceSpecs extends Specification {
   import ThymeExtras._
   val th = ichi.bench.Thyme.warmed(verbose = print)
   def beSimilarlyFast[T](name: String)(speedy: ⇒ T)(whileLoopy: ⇒ T)(rangy: ⇒ T) = {
+    {
+      val speedyRes = speedy
+      val whileRes = whileLoopy
+      val rangyRes = rangy
+      require(speedyRes == whileRes, s"speed result must equal while result but was $speedyRes != $whileRes")
+      require(speedyRes == rangyRes, s"speed result must equal range result but was $speedyRes != $rangyRes")
+    }
+
     val result = th.benchOffPair(title = s"$name speedy vs. while", targetTime = 1)(speedy)(whileLoopy)._2
     val result2 = th.benchOffPair(title = s"$name old-style vs. while", targetTime = 1)(rangy)(whileLoopy)._2
     val speedySpeedup = 1d / result.factor * 100d
