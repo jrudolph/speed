@@ -18,12 +18,12 @@ addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0" cross CrossVersion.fu
 libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
 
 // make sure to recompile tests every time
-//cleanFiles in Test <<= Seq(classDirectory in Test).join
+cleanFiles in Test <<= Seq(classDirectory in Test).join
 
-//cleanKeepFiles in Test := Nil
+cleanKeepFiles in Test := Nil
 
-//clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean
+clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean
 
-//compile in Test <<= (compile in Test).dependsOn(clean in Test)
+compile in Test <<= (compile in Test).dependsOn(clean in Test)
 
 unmanagedBase in Test <<= baseDirectory / "test-lib"
