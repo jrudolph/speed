@@ -6,14 +6,19 @@ package object speed {
     def until(until: Int): FastRange = ???
   }
 
-  implicit class refArrayOps[T <: AnyRef](val oa: Array[T]) {
-    def foreach[U](f: T ⇒ U): Unit = macro SpeedMacros.arrayForeachImpl[T, U]
+  implicit class arrayOps[T](val array: Array[T]) {
+    def foreach[U](f: T ⇒ U): Unit = macro SpeedMacros.arrayOpImpl[T, U, Unit]
+    def map[U](f: T ⇒ U): MappedRange[U] = macro SpeedMacros.arrayOpImpl[T, U, Array[U]]
+    def filter(f: T ⇒ Boolean): MappedRange[T] = macro SpeedMacros.arrayOpImpl[T, Boolean, Array[T]]
+    def sum(implicit num: Numeric[T]): T = ??? //macro SpeedMacros.arrayTerminalOpImpl
   }
 
-  implicit class wrapIntArray(oa: Array[Int]) {
-    def foreach[U](f: Int ⇒ U): Unit = macro SpeedMacros.arrayForeachImpl[Int, U]
-  }
   val intArrayOps = null
+  val longArrayOps = null
+  val wrapIntArray = null
+  val wrapLongArray = null
+  val genericArrayOps = null
+  val genericWrapArray = null
 
   implicit def isNormalRange(f: FastRange): Range = macro SpeedMacros.normalRangeConv
   implicit def isNormalRange(f: FastSteppedRange): Range = macro SpeedMacros.normalRangeConv

@@ -139,8 +139,8 @@ object SpeedMacros {
     }
   }
 
-  def arrayForeachImpl[T, U](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[Unit] =
-    c.Expr[Unit] {
+  def arrayOpImpl[T, U, R](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[R] =
+    c.Expr[R] {
       val t =
         new Helper[c.type](c) with SpeedHelper {
 
@@ -149,23 +149,18 @@ object SpeedMacros {
           override def run = {
             val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
 
-            val array = c.prefix.tree match {
-              case q"$x.refArrayOps[$y]($array)" ⇒ array
-              case q"$x.wrapIntArray($array)"    ⇒ array
+            val (array, targs, op) = c.macroApplication match {
+              case q"$x.arrayOps[$y]($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
+              case q"$x.wrapIntArray($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
+              case q"$x.wrapLongArray($array).$op[..$targs](..${ _ })" ⇒ (array, targs, op)
             }
-            val arrayVar = c.fresh(newTermName("array"))
-            val idxVar = c.fresh(newTermName("idx"))
+            val arrayVar = c.fresh(newTermName("array_temp"))
             q"""
-            import speed._
-            $init
-            val $arrayVar = $array
-            (0 until $arrayVar.length).foreach { idx ⇒ // FIXME: is this hygienic?
-               val $valName = $arrayVar(idx)
-               $application
-            }
-          """
+              $init
+              val $arrayVar = $array
+              (_root_.speed.intWrapper(0) until $arrayVar.length).map($arrayVar(_)).$op[..$targs]($f)
+            """
           }
-
         }.run
       t
     }
@@ -215,6 +210,10 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
           generateForCallChain(rangeFunc, Nil, varName, application, q"()")
 
         generateForCallChain(expr, init, name.name, innerLoop, blockExpr)
+
+      case Block(stats, expr) ⇒
+        generateForCallChain(expr, init ++ stats, varName, application, blockExpr)
+
       case expr ⇒
         val (start, end, by, inclusive) = matchConstructor(expr)
         generateGeneral(start, end, by, inclusive, init, varName, application, blockExpr)

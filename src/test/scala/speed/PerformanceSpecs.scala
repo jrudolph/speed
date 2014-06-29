@@ -113,13 +113,66 @@ class PerformanceSpecs extends Specification {
         }
       }
     }
-    "improve speed of Array.foreach" in {
+    "improve speed of Array methods" in {
       "array foreach counting" in {
         val array = Array.tabulate[Int](1000)(identity)
         beSimilarlyFast("array foreach counting") {
           var counter = 0
           for (x ← array) counter += x * x
           counter
+        } {
+          var counter = 0
+          var i = 0
+          while (i < array.length) {
+            val x = array(i)
+            counter += x * x
+            i += 1
+          }
+          counter
+        } {
+          var counter = 0
+          for (x ← Predef.wrapIntArray(array)) counter += x * x
+          counter
+        }
+      }
+      "array summing" in {
+        val array = Array.tabulate[Int](1000)(identity)
+        beSimilarlyFast("array summing") {
+          array.sum
+        } {
+          var counter = 0
+          var i = 0
+          while (i < array.length) {
+            val x = array(i)
+            counter += x
+            i += 1
+          }
+          counter
+        } {
+          Predef.wrapIntArray(array).sum
+        }
+      }
+      "array filtered summing" in {
+        val array = Array.tabulate[Int](1000)(_ * 2)
+        beSimilarlyFast("array filtered summing") {
+          array.filter(_ % 3 == 0).foldLeft(0)(_ + _) // sum still uses Numeric instances
+        } {
+          var counter = 0
+          var i = 0
+          while (i < 1000) {
+            val x = array(i)
+            if (x % 3 == 0) counter += x
+            i += 1
+          }
+          counter
+        } {
+          Predef.wrapIntArray(array).filter(_ % 3 == 0).sum
+        }
+      }
+      "array mapped summing" in {
+        val array = Array.tabulate[Int](1000)(identity)
+        beSimilarlyFast("array mapped summing  ") {
+          array.map(x ⇒ x * x).foldLeft(0)(_ + _)
         } {
           var counter = 0
           var i = 0
@@ -152,6 +205,4 @@ class PerformanceSpecs extends Specification {
 
     !result.significantlyDifferent || result.factor > 0.99 must beTrue.or(failure("Wasn't matching as fast but " + result))
   }
-
 }
-
