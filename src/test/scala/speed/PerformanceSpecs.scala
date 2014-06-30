@@ -171,7 +171,7 @@ class PerformanceSpecs extends Specification {
       }
       "array mapped summing" in {
         val array = Array.tabulate[Int](1000)(identity)
-        beSimilarlyFast("array mapped summing  ") {
+        beSimilarlyFast("array mapped summing") {
           array.map(x ⇒ x * x).foldLeft(0)(_ + _)
         } {
           var counter = 0
@@ -186,6 +186,33 @@ class PerformanceSpecs extends Specification {
           var counter = 0
           for (x ← Predef.wrapIntArray(array)) counter += x * x
           counter
+        }
+      }
+      only("size of filtered ref array")
+      "size of filtered ref array" in {
+        class Ref(var num: Int = 0)
+
+        val N = 1000
+        val refs = (0 until N).map(i ⇒ new Ref(i)).toArray
+        beSimilarlyFast("size of filtered ref array") {
+          refs
+            .filter(_.num % 5 == 0)
+            .filter(_.num % 7 == 0)
+            .size
+        } {
+          var i = 0
+          var count = 0
+          while (i < refs.length) {
+            if (refs(i).num % 5 == 0 && refs(i).num % 7 == 0)
+              count += 1
+            i += 1
+          }
+          count
+        } {
+          Predef.wrapRefArray(refs)
+            .filter(_.num % 5 == 0)
+            .filter(_.num % 7 == 0)
+            .size
         }
       }
     }

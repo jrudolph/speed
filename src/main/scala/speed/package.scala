@@ -21,6 +21,7 @@ package object speed {
   val wrapRefArray = null
   val genericArrayOps = null
   val genericWrapArray = null
+  val refArrayOps = null
 
   implicit def isNormalRange(f: FastRange): Range = macro SpeedMacros.normalRangeConv
   implicit def isNormalRange(f: FastSteppedRange): Range = macro SpeedMacros.normalRangeConv
