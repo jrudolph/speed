@@ -20,9 +20,9 @@ package speed {
   }
   trait TerminalOps[A] {
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro SpeedMacrosV2.entryFoldLeft[A, B]
-    def foreach[T](f: A ⇒ T): Unit = macro SpeedMacrosV2.entryF1[A, T, Unit]
+    def foreach[T](f: A ⇒ T): Unit = macro SpeedMacrosV2.entryP1[Unit]
     def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1
-    def sum[B >: A](implicit num: Numeric[B]): B
+    def sum[B >: A](implicit i: Numeric[B]): B = macro SpeedMacrosV2.entryImplicitP1[Numeric[B], B]
     def min[B >: A](implicit cmp: Ordering[B]): A
     def max[B >: A](implicit cmp: Ordering[B]): A
     def size: Int = ???

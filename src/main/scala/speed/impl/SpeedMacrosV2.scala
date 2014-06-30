@@ -3,7 +3,9 @@ package speed.impl
 import scala.reflect.macros.Context
 
 object SpeedMacrosV2 {
-  def entryF1[T, U, R](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[R] =
+  def entryP1[R](c: Context)(f: c.Expr[Any]): c.Expr[R] =
+    new TransformingSpeedContext[c.type](c).run[R]
+  def entryImplicitP1[I, R](c: Context)(i: c.Expr[I]): c.Expr[R] =
     new TransformingSpeedContext[c.type](c).run[R]
   def entryFoldLeft[T, U](c: Context)(init: c.Expr[U])(f: c.Expr[(U, T) ⇒ U]): c.Expr[U] =
     new TransformingSpeedContext[c.type](c).run[U]
@@ -15,14 +17,20 @@ class TransformingSpeedContext[C <: Context](val c: C) extends SpeedImpl {
 
 class SpeedContext[C <: Context](val c: C) extends SpeedImpl
 
-trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer with ConstantFolding {
+trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer with ConstantFolding with ContextHelpers {
   import c.universe._
 
   case class Closure(valName: TermName, application: Tree, init: Tree)
   case class Closure2(valName1: TermName, valName2: TermName, application: Tree, init: Tree)
 
   sealed trait Generator
-  case class MappingGenerator(inner: Generator, f: Closure) extends Generator
+  sealed trait InnerGenerator extends Generator {
+    def outer: Generator
+    def transformOuter(f: Generator ⇒ Generator): InnerGenerator
+  }
+  case class MappingGenerator(outer: Generator, f: Closure) extends InnerGenerator {
+    def transformOuter(f: Generator ⇒ Generator): MappingGenerator = copy(outer = f(outer))
+  }
   case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Boolean) extends Generator
   case class ArrayGenerator(array: Tree) extends Generator
 
@@ -52,9 +60,16 @@ trait Analyzer { self: SpeedImpl ⇒
   def analyze(t: Tree): OperationChain = t match {
     case q"$inner.foreach[..${ _ }]($f)"         ⇒ OperationChain(analyzeGen(inner), Foreach(closure1(f)))
     case q"$inner.foldLeft[..${ _ }]($init)($f)" ⇒ OperationChain(analyzeGen(inner), FoldLeft(init, closure2(f)))
+    case q"$inner.sum[..${ _ }]($num)"           ⇒ OperationChain(analyzeGen(inner), Sum(num))
   }
   def analyzeGen(t: Tree): Generator = t match {
     case q"$inner.map[..${ _ }]($f)" ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.filter[..${ _ }]($f)" ⇒
+      // FIXME: remove stub
+      MappingGenerator(analyzeGen(inner), closure1(q"identity(_)"))
+    case q"$inner.flatMap[..${ _ }]($f)" ⇒
+      MappingGenerator(analyzeGen(inner), closure1(q"identity(_)"))
+
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
     case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(a)
 
@@ -253,11 +268,18 @@ trait Optimizer { self: SpeedImpl ⇒
   import c.universe._
 
   def optimize(chain: OperationChain): OperationChain =
-    OperationChain(optimizeGen(chain.generator), chain.terminal)
+    OperationChain(optimizeGen(chain.generator), optimizeTerminal(chain.terminal))
 
   def optimizeGen(gen: Generator): Generator = gen match {
     case ArrayGenerator(array) ⇒
       MappingGenerator(RangeGenerator(q"0", q"$array.length", q"1", false), Closure("idx", q"$array(idx)", q""))
-    case _ ⇒ gen
+    case i: InnerGenerator ⇒ i.transformOuter(optimizeGen)
+    case _                 ⇒ gen
   }
+
+  def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
+    case Sum(num) ⇒ FoldLeft(q"$num.zero", closure2(q"$num.plus(_, _)"))
+    case _ ⇒ terminal
+  }
+
 }
