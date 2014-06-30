@@ -3,6 +3,8 @@ package speed
 import org.specs2.mutable.Specification
 import org.specs2.execute.PendingUntilFixed
 
+import speed.impl.Debug.rangeForeach
+
 class SpeedSpecs extends Specification with PendingUntilFixed {
   "Speed macros" should {
     "optimize Range operations" in {
@@ -134,23 +136,23 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
 
       "provide foldLeft + other foldLeft derived ops" in {
         "foldLeft" in {
-          (1 to 1000).foldLeft(0)(_ + _) === (((1 to 1000): Range).sum)
+          (1 to 1000).speedy.foldLeft(0)(_ + _) === (((1 to 1000): Range).sum)
         }
         "foldLeft for mapped ranges" in {
-          (1 to 1000).map(i ⇒ i * i).foldLeft(0)(_ + _) === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+          (1 to 1000).speedy.map(i ⇒ i * i).foldLeft(0)(_ + _) === (((1 to 1000): Range).map(i ⇒ i * i).sum)
         }
         "sum" in {
-          (1 to 1000).sum === (((1 to 1000): Range).sum)
+          (1 to 1000).speedy.sum === (((1 to 1000): Range).sum)
         }
         "sum for mapped ranges" in {
-          (1 to 1000).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+          (1 to 1000).speedy.map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
         }
         "reduce for mapped ranges" in {
-          (1000 to 1).reduce(_ + _) must throwA[UnsupportedOperationException]
-          (1 to 1000).map(1+).reduce(_ + _) === (2 to 1001).sum
+          (1000 to 1).speedy.reduce(_ + _) must throwA[UnsupportedOperationException]
+          (1 to 1000).speedy.map(1+).reduce(_ + _) === (2 to 1001).sum
         }
         "double map" in {
-          (1 to 1000).map(i ⇒ i).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
+          (1 to 1000).speedy.map(i ⇒ i).map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
         }
         "flatMap" in {
           val reference =
@@ -160,14 +162,14 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
             } yield i * j).sum
           val value =
             (for {
-              i ← 1 to 100
-              j ← 1 to 100
+              i ← 1 to 100 speedy;
+              j ← 1 to 100 speedy
             } yield i * j).sum
 
           value === reference
         }
         "don't constant fold into applications" in {
-          (1 to 1000).map { i ⇒
+          (1 to 1000).speedy.map { i ⇒
             var j = 1
             def set(): Boolean = { j = i; true }
             // our peephole optimization is too aggressive to be used generally
@@ -179,35 +181,35 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       }
       "provide filter" in {
         "simple cases" in {
-          (1 to 1000).filter(_ % 2 == 0).sum === ((1 to 1000): Range).filter(_ % 2 == 0).sum
+          (1 to 1000).speedy.filter(_ % 2 == 0).sum === ((1 to 1000): Range).filter(_ % 2 == 0).sum
         }
         "mapped" in {
-          (1 to 1000).map(_.toString).filter(_.length == 2).reduce(_ + _) ===
+          (1 to 1000).speedy.map(_.toString).filter(_.length == 2).reduce(_ + _) ===
             ((1 to 1000): Range).map(_.toString).filter(_.length == 2).reduce(_ + _)
         }
       }
       "provide min" in {
-        (1000 to 1 by -1).min === 1
+        (1000 to 1 by -1).speedy.min === 1
       }
       "provide size" in {
-        (5 to 1000).size === (1000 - 5 + 1)
+        (5 to 1000).speedy.size === (1000 - 5 + 1)
       }
     }
     "optimize array operations" in {
       val array = Array.tabulate[Int](100)(identity)
       "foreach" in {
         var counter = 0
-        for (x ← array) counter += x
+        for (x ← array.speedy) counter += x
         counter === (0 to 99).sum
       }
       "sum" in {
-        array.sum === (0 to 99).sum
+        array.speedy.sum === (0 to 99).sum
       }
       "mapped sum" in {
-        array.map(_ + 1).sum === (1 to 100).sum
+        array.speedy.map(_ + 1).sum === (1 to 100).sum
       }
       "mapped size" in {
-        array.map(_ + 5).size === 100
+        array.speedy.map(_ + 5).size === 100
       }
     }
   }

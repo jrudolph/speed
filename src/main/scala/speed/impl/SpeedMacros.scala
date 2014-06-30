@@ -132,7 +132,7 @@ object SpeedMacros {
       val buffer = new scala.collection.mutable.ListBuffer[Int]
       var count = 0
       val x = 12
-      r.splice.foreach { element ⇒
+      r.splice.speedy.foreach { element ⇒
         val gap = x
         require(count < 1000, "Too many iterations needed")
         count += 1

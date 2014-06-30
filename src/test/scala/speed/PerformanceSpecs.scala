@@ -19,7 +19,7 @@ class PerformanceSpecs extends Specification {
       "foreach counting" in {
         beSimilarlyFast("foreach counting") {
           var counter = 0
-          for (i ← 1 to 1000) counter += i * i
+          for (i ← 1 to 1000 speedy) counter += i * i
           counter
         } {
           var counter = 0
@@ -39,8 +39,8 @@ class PerformanceSpecs extends Specification {
         beSimilarlyFast("nested counting") {
           var counter = 0
           for {
-            i ← 1 to 100
-            j ← 1 to 100
+            i ← 1 to 100 speedy;
+            j ← 1 to 100 speedy
           } counter += i * j
           counter
         } {
@@ -69,7 +69,7 @@ class PerformanceSpecs extends Specification {
         pending("macro shouldn't apply here because Range.sum is optimized but still does")
 
         beSimilarlyFast("summing") {
-          (1 to 1000).sum
+          (1 to 1000).speedy.sum
         } {
           var counter = 0
           var i = 1
@@ -84,7 +84,7 @@ class PerformanceSpecs extends Specification {
       }
       "filtered summing" in {
         beSimilarlyFast("filtered summing") {
-          (1 to 1000).filter(_ % 3 == 0).sum
+          (1 to 1000).speedy.filter(_ % 3 == 0).sum
         } {
           var counter = 0
           var i = 1
@@ -99,7 +99,7 @@ class PerformanceSpecs extends Specification {
       }
       "mapped summing" in {
         beSimilarlyFast("mapped summing") {
-          (1 to 1000).map(i ⇒ i * i).sum
+          (1 to 1000).speedy.map(i ⇒ i * i).sum
         } {
           var counter = 0
           var i = 1
@@ -118,7 +118,7 @@ class PerformanceSpecs extends Specification {
         val array = Array.tabulate[Int](1000)(identity)
         beSimilarlyFast("array foreach counting") {
           var counter = 0
-          for (x ← array) counter += x * x
+          for (x ← array.speedy) counter += x * x
           counter
         } {
           var counter = 0
@@ -138,7 +138,7 @@ class PerformanceSpecs extends Specification {
       "array summing" in {
         val array = Array.tabulate[Int](1000)(identity)
         beSimilarlyFast("array summing") {
-          array.sum
+          array.speedy.sum
         } {
           var counter = 0
           var i = 0
@@ -155,7 +155,7 @@ class PerformanceSpecs extends Specification {
       "array filtered summing" in {
         val array = Array.tabulate[Int](1000)(_ * 2)
         beSimilarlyFast("array filtered summing") {
-          array.filter(_ % 3 == 0).sum
+          array.speedy.filter(_ % 3 == 0).sum
         } {
           var counter = 0
           var i = 0
@@ -172,7 +172,7 @@ class PerformanceSpecs extends Specification {
       "array mapped summing" in {
         val array = Array.tabulate[Int](1000)(identity)
         beSimilarlyFast("array mapped summing") {
-          array.map(x ⇒ x * x).sum
+          array.speedy.map(x ⇒ x * x).sum
         } {
           var counter = 0
           var i = 0
@@ -194,7 +194,7 @@ class PerformanceSpecs extends Specification {
         val N = 1000
         val refs = (0 until N).map(i ⇒ new Ref(i)).toArray
         beSimilarlyFast("size of filtered ref array") {
-          refs
+          refs.speedy
             .filter(_.num % 5 == 0)
             .filter(_.num % 7 == 0)
             .size
