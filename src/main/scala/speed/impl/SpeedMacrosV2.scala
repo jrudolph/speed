@@ -31,6 +31,9 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class MappingGenerator(outer: Generator, f: Closure) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): MappingGenerator = copy(outer = f(outer))
   }
+  case class FilteringGenerator(outer: Generator, f: Closure) extends InnerGenerator {
+    def transformOuter(f: Generator ⇒ Generator): FilteringGenerator = copy(outer = f(outer))
+  }
   case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Boolean) extends Generator
   case class ArrayGenerator(array: Tree) extends Generator
 
@@ -63,10 +66,8 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.sum[..${ _ }]($num)"           ⇒ OperationChain(analyzeGen(inner), Sum(num))
   }
   def analyzeGen(t: Tree): Generator = t match {
-    case q"$inner.map[..${ _ }]($f)" ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
-    case q"$inner.filter[..${ _ }]($f)" ⇒
-      // FIXME: remove stub
-      MappingGenerator(analyzeGen(inner), closure1(q"identity(_)"))
+    case q"$inner.map[..${ _ }]($f)"    ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.filter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.flatMap[..${ _ }]($f)" ⇒
       MappingGenerator(analyzeGen(inner), closure1(q"identity(_)"))
 
@@ -128,7 +129,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
 
   def generateGen(gen: Generator, valName: TermName, application: Tree): Tree = gen match {
     case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, valName, application)
-    case MappingGenerator(inner, f) ⇒
+    case MappingGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
       val body =
         q"""
@@ -139,7 +140,23 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
             $application
           """
 
-      generateGen(inner, tempName, body)
+      generateGen(outer, tempName, body)
+
+    case FilteringGenerator(outer, f) ⇒
+      val tempName = c.fresh(newTermName("m$"))
+      val body =
+        q"""
+            if ({
+              val ${f.valName} = $tempName
+              ${f.application}
+            }) {
+              val $valName = $tempName
+              $application
+            }
+          """
+
+      generateGen(outer, tempName, body)
+
     //case _ => q"()"
   }
   def generateTerminal(terminal: TerminalOperation, valName: TermName): TerminalOperationSetup = terminal match {
@@ -279,7 +296,7 @@ trait Optimizer { self: SpeedImpl ⇒
 
   def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
     case Sum(num) ⇒ FoldLeft(q"$num.zero", closure2(q"$num.plus(_, _)"))
-    case _ ⇒ terminal
+    case _        ⇒ terminal
   }
 
 }
