@@ -23,8 +23,8 @@ package speed {
     def foreach[T](f: A ⇒ T): Unit = macro SpeedMacrosV2.entryP1[Unit]
     def reduce[A1 >: A](f: (A1, A1) ⇒ A1): A1 = macro SpeedMacrosV2.entryP1[A1]
     def sum[B >: A](implicit i: Numeric[B]): B = macro SpeedMacrosV2.entryImplicitP1[Numeric[B], B]
-    def min[B >: A](implicit cmp: Ordering[B]): A
-    def max[B >: A](implicit cmp: Ordering[B]): A
+    def min[B >: A](implicit i: Ordering[B]): A = macro SpeedMacrosV2.entryImplicitP1[Ordering[B], A]
+    def max[B >: A](implicit i: Ordering[B]): A = macro SpeedMacrosV2.entryImplicitP1[Ordering[B], A]
     def size: Int = macro SpeedMacrosV2.entryP0[Int]
 
     // other interesting foldLeft based operators to implement:

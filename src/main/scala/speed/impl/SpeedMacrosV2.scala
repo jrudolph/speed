@@ -48,6 +48,8 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class Reduce(tpe: Type, f: Closure2) extends TerminalOperation
 
   case class Sum(numeric: Tree) extends TerminalOperation
+  case class Min(ordering: Tree) extends TerminalOperation
+  case class Max(ordering: Tree) extends TerminalOperation
   case object Size extends TerminalOperation
 
   case class OperationChain(generator: Generator, terminal: TerminalOperation)
@@ -72,6 +74,8 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.foldLeft[..${ _ }]($init)($f)" ⇒ OperationChain(analyzeGen(inner), FoldLeft(init, closure2(f)))
     case q"$inner.reduce[$t]($f)"                ⇒ OperationChain(analyzeGen(inner), Reduce(t.tpe, closure2(f)))
     case q"$inner.sum[..${ _ }]($num)"           ⇒ OperationChain(analyzeGen(inner), Sum(num))
+    case q"$inner.min[..${ _ }]($ord)"           ⇒ OperationChain(analyzeGen(inner), Min(ord))
+    case q"$inner.max[..${ _ }]($ord)"           ⇒ OperationChain(analyzeGen(inner), Max(ord))
     case q"$inner.size"                          ⇒ OperationChain(analyzeGen(inner), Size)
   }
   def analyzeGen(t: Tree): Generator = t match {
@@ -346,8 +350,17 @@ trait Optimizer { self: SpeedImpl ⇒
 
   def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
     case Sum(num) ⇒ FoldLeft(q"$num.zero", closure2(q"$num.plus(_, _)"))
+    case Min(ord) ⇒ minOrMax("min", ord)
+    case Max(ord) ⇒ minOrMax("max", ord)
     case Size     ⇒ FoldLeft(q"0", closure2(q"((num, _) => num + 1)"))
     case _        ⇒ terminal
   }
 
+  def minOrMax(op: TermName, ord: Tree): TerminalOperation = {
+    val Ord = typeOf[Ordering[_]].typeSymbol.asClass
+    val OrdT = Ord.typeParams(0).asType.toType
+    val cand = OrdT.asSeenFrom(ord.tpe, Ord)
+
+    Reduce(cand, closure2(q"$ord.$op(_, _)"))
+  }
 }

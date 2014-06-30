@@ -192,6 +192,9 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "provide min" in {
         (1000 to 1 by -1).speedy.min === 1
       }
+      "provide max" in {
+        (1000 to 1 by -1).speedy.max === 1000
+      }
       "provide size" in {
         (5 to 1000).speedy.size === (1000 - 5 + 1)
       }
