@@ -114,13 +114,17 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
   def generateGen(gen: Generator, valName: TermName, application: Tree): Tree = gen match {
     case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, valName, application)
     case MappingGenerator(inner, f) ⇒
+      val tempName = c.fresh(newTermName("m$"))
       val body =
         q"""
-            val $valName= ${f.application}
+            val $valName = {
+              val ${f.valName} = $tempName
+              ${f.application}
+            }
             $application
           """
 
-      generateGen(inner, f.valName, body)
+      generateGen(inner, tempName, body)
     //case _ => q"()"
   }
   def generateTerminal(terminal: TerminalOperation, valName: TermName): TerminalOperationSetup = terminal match {
