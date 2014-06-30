@@ -31,6 +31,9 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class MappingGenerator(outer: Generator, f: Closure) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): MappingGenerator = copy(outer = f(outer))
   }
+  case class FlatMappingGenerator(outer: Generator, valName: TermName, innerGenerator: Generator) extends InnerGenerator {
+    def transformOuter(f: Generator ⇒ Generator): FlatMappingGenerator = copy(outer = f(outer))
+  }
   case class FilteringGenerator(outer: Generator, f: Closure) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): FilteringGenerator = copy(outer = f(outer))
   }
@@ -71,7 +74,9 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.map[..${ _ }]($f)"    ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.filter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.flatMap[..${ _ }]($f)" ⇒
-      MappingGenerator(analyzeGen(inner), closure1(q"identity(_)"))
+      val Closure(valName, q"$innerGeneratorTree: @speed.dontfold", _) = closure1(f)
+
+      FlatMappingGenerator(analyzeGen(inner), valName, analyzeGen(innerGeneratorTree))
 
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
     case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(a)
@@ -129,13 +134,13 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
     """
   }
 
-  def generateGen(gen: Generator, valName: TermName, application: Tree): Tree = gen match {
-    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, valName, application)
+  def generateGen(gen: Generator, expectedValName: TermName, application: Tree): Tree = gen match {
+    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application)
     case MappingGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
       val body =
         q"""
-            val $valName = {
+            val $expectedValName = {
               val ${f.valName} = $tempName
               ${f.application}
             }
@@ -143,6 +148,10 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
           """
 
       generateGen(outer, tempName, body)
+
+    case FlatMappingGenerator(outer, innerValName, innerGenerator) ⇒
+      val innerLoop = generateGen(innerGenerator, expectedValName, application)
+      generateGen(outer, innerValName, innerLoop)
 
     case FilteringGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
@@ -152,7 +161,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
               val ${f.valName} = $tempName
               ${f.application}
             }) {
-              val $valName = $tempName
+              val $expectedValName = $tempName
               $application
             }
           """
