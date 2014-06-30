@@ -49,15 +49,15 @@ Runtime (smaller is better, reference is an equivalent while loop)
 
 |Description|While|Speedy|Scala|
 |-----------|----:|------|----:|
-|[foreach counting](#foreach-counting}) | 100 % | 100.22 % | 135.97 %
-|[nested counting](#nested-counting}) | 100 % | 100.91 % | 218.19 %
-|[filtered summing](#filtered-summing}) | 100 % | 98.22 % | 1543.41 %
-|[mapped summing](#mapped-summing}) | 100 % | 102.32 % | 1585.62 %
-|[array foreach counting](#array-foreach-counting}) | 100 % | 99.47 % | 443.93 %
-|[array summing](#array-summing}) | 100 % | 99.73 % | 296.28 %
-|[array filtered summing](#array-filtered-summing}) | 100 % | 103.16 % | 973.61 %
-|[array mapped summing](#array-mapped-summing}) | 100 % | 100.69 % | 450.02 %
-|[size of filtered ref array](#size-of-filtered-ref-array}) | 100 % | 99.83 % | 351.10 %
+|[foreach counting](#foreach-counting) | 100 % | 100.22 % | 135.97 %
+|[nested counting](#nested-counting) | 100 % | 100.91 % | 218.19 %
+|[filtered summing](#filtered-summing) | 100 % | 98.22 % | 1543.41 %
+|[mapped summing](#mapped-summing) | 100 % | 102.32 % | 1585.62 %
+|[array foreach counting](#array-foreach-counting) | 100 % | 99.47 % | 443.93 %
+|[array summing](#array-summing) | 100 % | 99.73 % | 296.28 %
+|[array filtered summing](#array-filtered-summing) | 100 % | 103.16 % | 973.61 %
+|[array mapped summing](#array-mapped-summing) | 100 % | 100.69 % | 450.02 %
+|[size of filtered ref array](#size-of-filtered-ref-array) | 100 % | 99.83 % | 351.10 %
 
 (Don't be fooled, values < 100 % are most likely not significant but I'm including them here
  anyways just for the giggles. :laughing:)
