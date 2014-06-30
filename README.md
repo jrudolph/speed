@@ -8,7 +8,7 @@ Install
 ```
 resolvers += Opts.resolver.sonatypeReleases
 
-libraryDependencies += "net.virtual-void" %% "speed" % "12" % "provided"
+libraryDependencies += "net.virtual-void" %% "speed" % "13" % "provided"
 ```
 
 Use
@@ -47,13 +47,17 @@ How much fasta?
 
 Runtime (smaller is better, reference is an equivalent while loop)
 
-|Description|While|Speedy Range|Scala Range|
-|-----------|----:|-----------:|----------:|
-|[foreach counting](#foreach-counting) | 100 % | 98.43 % | 143.02 %
-|[nested counting](#nested-counting)   | 100 % | 99.55 % | 223.28 %
-|[filtered summing](#filtered-summing) | 100 % | 98.30 % | 1744.03 %
-|[mapped summing](#mapped-summing)     | 100 % | 96.12 % | 4974.68 %
-|[array foreach counting](#array-foreach-counting) | 100 % | 99.48 % | 439.40 %
+|Description|While|Speedy|Scala|
+|-----------|----:|------|----:|
+|[foreach counting](#foreach-counting}) | 100 % | 100.22 % | 135.97 %
+|[nested counting](#nested-counting}) | 100 % | 100.91 % | 218.19 %
+|[filtered summing](#filtered-summing}) | 100 % | 98.22 % | 1543.41 %
+|[mapped summing](#mapped-summing}) | 100 % | 102.32 % | 1585.62 %
+|[array foreach counting](#array-foreach-counting}) | 100 % | 99.47 % | 443.93 %
+|[array summing](#array-summing}) | 100 % | 99.73 % | 296.28 %
+|[array filtered summing](#array-filtered-summing}) | 100 % | 103.16 % | 973.61 %
+|[array mapped summing](#array-mapped-summing}) | 100 % | 100.69 % | 450.02 %
+|[size of filtered ref array](#size-of-filtered-ref-array}) | 100 % | 99.83 % | 351.10 %
 
 (Don't be fooled, values < 100 % are most likely not significant but I'm including them here
  anyways just for the giggles. :laughing:)
@@ -93,6 +97,34 @@ for (x ← array) counter += x * x
 counter
 ```
 
+### Array summing
+```scala
+array.sum
+```
+
+### Array filtered summing
+```scala
+array.filter(_ % 3 == 0).sum
+```
+
+### Array mapped summing
+```scala
+array.map(x ⇒ x * x).sum
+```
+
+### Size of Filtered ref Array
+```scala
+class Ref(var num: Int = 0)
+
+val N = 1000
+val refs = (0 until N).map(i ⇒ new Ref(i)).toArray
+
+refs
+  .filter(_.num % 5 == 0)
+  .filter(_.num % 7 == 0)
+  .size
+```
+
 What's missing?
 ---------------
 
@@ -101,8 +133,6 @@ Much.
  * support for putting our special ranges into vals and use them later
  * proper testing
  * support for more Array methods
- * support for other Array types than `Array[Int]`
-
 
 Should I use it in production?
 ------------------------------
@@ -115,9 +145,8 @@ Look into the eyes of your favorite car dealer, again, and decide yo'self:
 Extra goodies
 -------------
 
- * example of using quasiquotes for 2.10.2 macros
+ * example of using quasiquotes for 2.10.4 macros
  * a stub implementation for constant folding to simplify generated trees if possible
-
 
 Previous work
 -------------
