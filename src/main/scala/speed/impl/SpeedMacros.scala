@@ -1,4 +1,5 @@
 package speed
+package impl
 
 import scala.reflect.macros.Context
 import scala.annotation.tailrec
@@ -46,11 +47,11 @@ object SpeedMacros {
     c.Expr[B](t)
   }
 
-  def sumImpl[A, B >: A](c: Context { type PrefixType = MappedRange[A] })(num: c.Expr[Numeric[B]]): c.Expr[B] = {
+  def sumImpl[A, B >: A](c: Context { type PrefixType = OptimizedColl[A] })(num: c.Expr[Numeric[B]]): c.Expr[B] = {
     import c.universe._
     c.Expr[B](q"${c.prefix.tree}.foldLeft(${num.tree}.zero)(${num.tree}.plus)")
   }
-  def sizeImpl[A](c: Context { type PrefixType = MappedRange[A] }): c.Expr[Int] = {
+  def sizeImpl[A](c: Context { type PrefixType = OptimizedColl[A] }): c.Expr[Int] = {
     import c.universe._
     c.Expr[Int](q"${c.prefix.tree}.foldLeft(0)((num, _) => num + 1)")
   }
@@ -93,7 +94,7 @@ object SpeedMacros {
     }
   }
 
-  def normalRangeConv(c: Context)(f: c.Expr[FastSteppedRange]): c.Expr[Range] =
+  def normalRangeConv(c: Context)(f: c.Expr[OptimizedColl[Int]]): c.Expr[Range] =
     c.Expr[Range] {
       new Helper[c.type](c) with SpeedHelper {
 
@@ -107,7 +108,7 @@ object SpeedMacros {
 
       }.run
     }
-  def mappedRangeImpl[U](c: Context)(f: c.Expr[MappedRange[U]]): c.Expr[Seq[U]] =
+  def mappedRangeImpl[U](c: Context)(f: c.Expr[OptimizedColl[U]]): c.Expr[Seq[U]] =
     c.Expr[Seq[U]] {
       new Helper[c.type](c) with SpeedHelper {
 

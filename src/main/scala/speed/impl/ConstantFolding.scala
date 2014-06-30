@@ -1,4 +1,5 @@
 package speed
+package impl
 
 import scala.util.control.NonFatal
 

@@ -1,4 +1,5 @@
 package speed
+package impl
 
 import scala.reflect.api.{ Universe ⇒ ApiUniverse }
 import scala.reflect.macros.Context
