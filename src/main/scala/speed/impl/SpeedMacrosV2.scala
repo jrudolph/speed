@@ -3,6 +3,8 @@ package speed.impl
 import scala.reflect.macros.Context
 
 object SpeedMacrosV2 {
+  def entryP0[R](c: Context): c.Expr[R] =
+    new TransformingSpeedContext[c.type](c).run[R]
   def entryP1[R](c: Context)(f: c.Expr[Any]): c.Expr[R] =
     new TransformingSpeedContext[c.type](c).run[R]
   def entryImplicitP1[I, R](c: Context)(i: c.Expr[I]): c.Expr[R] =
@@ -46,12 +48,13 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class Reduce(tpe: Type, f: Closure2) extends TerminalOperation
 
   case class Sum(numeric: Tree) extends TerminalOperation
+  case object Size extends TerminalOperation
 
   case class OperationChain(generator: Generator, terminal: TerminalOperation)
 
   override def analyze(t: Tree): OperationChain = {
     val chain = super.analyze(t)
-    println(s"Chain for '${c.universe.show(t)}': $chain")
+    //println(s"Chain for '${c.universe.show(t)}': $chain")
 
     chain
   }
@@ -69,6 +72,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.foldLeft[..${ _ }]($init)($f)" ⇒ OperationChain(analyzeGen(inner), FoldLeft(init, closure2(f)))
     case q"$inner.reduce[$t]($f)"                ⇒ OperationChain(analyzeGen(inner), Reduce(t.tpe, closure2(f)))
     case q"$inner.sum[..${ _ }]($num)"           ⇒ OperationChain(analyzeGen(inner), Sum(num))
+    case q"$inner.size"                          ⇒ OperationChain(analyzeGen(inner), Size)
   }
   def analyzeGen(t: Tree): Generator = t match {
     case q"$inner.map[..${ _ }]($f)"    ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
@@ -342,6 +346,7 @@ trait Optimizer { self: SpeedImpl ⇒
 
   def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
     case Sum(num) ⇒ FoldLeft(q"$num.zero", closure2(q"$num.plus(_, _)"))
+    case Size     ⇒ FoldLeft(q"0", closure2(q"((num, _) => num + 1)"))
     case _        ⇒ terminal
   }
 

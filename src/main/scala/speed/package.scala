@@ -25,7 +25,7 @@ package speed {
     def sum[B >: A](implicit i: Numeric[B]): B = macro SpeedMacrosV2.entryImplicitP1[Numeric[B], B]
     def min[B >: A](implicit cmp: Ordering[B]): A
     def max[B >: A](implicit cmp: Ordering[B]): A
-    def size: Int = ???
+    def size: Int = macro SpeedMacrosV2.entryP0[Int]
 
     // other interesting foldLeft based operators to implement:
     // exists, forall, count
