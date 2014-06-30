@@ -11,7 +11,7 @@ package object speed {
     def map[U](f: T ⇒ U): MappedRange[U] = macro SpeedMacros.arrayOpImpl[T, U, Array[U]]
     def flatMap[B](f: T ⇒ MappedRange[B]): MappedRange[B] = macro SpeedMacros.arrayOpImpl[T, B, Array[B]]
     def filter(f: T ⇒ Boolean): MappedRange[T] = macro SpeedMacros.arrayOpImpl[T, Boolean, Array[T]]
-    def sum(implicit num: Numeric[T]): T = ??? //macro SpeedMacros.arrayTerminalOpImpl
+    def sum(implicit num: Numeric[T]): T = macro SpeedMacros.arraySumImpl[T]
   }
 
   val intArrayOps = null

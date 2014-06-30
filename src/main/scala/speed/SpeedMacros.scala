@@ -144,30 +144,29 @@ object SpeedMacros {
   }
 
   def arrayOpImpl[T, U, R](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[R] =
-    c.Expr[R] {
-      val t =
-        new Helper[c.type](c) with SpeedHelper {
+    c.Expr[R](genericArrayOpImpl(c)(f.tree))
 
-          import c.universe._
+  def genericArrayOpImpl[T, U, R](c: Context)(f: c.Tree): c.Tree =
+    new Helper[c.type](c) with SpeedHelper {
 
-          override def run = {
-            val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
+      import c.universe._
 
-            val (array, targs, op) = c.macroApplication match {
-              case q"$x.arrayOps[$y]($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
-              case q"$x.wrapIntArray($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
-              case q"$x.wrapLongArray($array).$op[..$targs](..${ _ })" ⇒ (array, targs, op)
-            }
-            val arrayVar = c.fresh(newTermName("array_temp"))
-            q"""
-              $init
+      override def run = {
+        val (array, targs, op) = c.macroApplication match {
+          case q"$x.arrayOps[$y]($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
+          case q"$x.wrapIntArray($array).$op[..$targs](..${ _ })"  ⇒ (array, targs, op)
+          case q"$x.wrapLongArray($array).$op[..$targs](..${ _ })" ⇒ (array, targs, op)
+        }
+        val arrayVar = c.fresh(newTermName("array_temp"))
+        q"""
               val $arrayVar = $array
               (_root_.speed.intWrapper(0) until $arrayVar.length).map($arrayVar(_)).$op[..$targs]($f)
             """
-          }
-        }.run
-      t
-    }
+      }
+    }.run
+
+  def arraySumImpl[T](c: Context)(num: c.Expr[Numeric[T]]): c.Expr[T] =
+    c.Expr[T](genericArrayOpImpl(c)(num.tree))
 
   def showTree[T](c: Context)(t: c.Expr[T]): c.Expr[T] = { println(s"Show '${c.universe.show(t)}'"); t }
 }

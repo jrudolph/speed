@@ -155,7 +155,7 @@ class PerformanceSpecs extends Specification {
       "array filtered summing" in {
         val array = Array.tabulate[Int](1000)(_ * 2)
         beSimilarlyFast("array filtered summing") {
-          array.filter(_ % 3 == 0).foldLeft(0)(_ + _) // sum still uses Numeric instances
+          array.filter(_ % 3 == 0).sum
         } {
           var counter = 0
           var i = 0
@@ -172,7 +172,7 @@ class PerformanceSpecs extends Specification {
       "array mapped summing" in {
         val array = Array.tabulate[Int](1000)(identity)
         beSimilarlyFast("array mapped summing") {
-          array.map(x ⇒ x * x).foldLeft(0)(_ + _)
+          array.map(x ⇒ x * x).sum
         } {
           var counter = 0
           var i = 0
@@ -188,7 +188,6 @@ class PerformanceSpecs extends Specification {
           counter
         }
       }
-      only("size of filtered ref array")
       "size of filtered ref array" in {
         class Ref(var num: Int = 0)
 

@@ -201,7 +201,7 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
         counter === (0 to 99).sum
       }
       "sum" in {
-        array.sum === (0 to 99).sum pendingUntilFixed
+        array.sum === (0 to 99).sum
       }
       "mapped sum" in {
         array.map(_ + 1).sum === (1 to 100).sum
