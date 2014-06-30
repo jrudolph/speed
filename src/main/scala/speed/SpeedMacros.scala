@@ -50,6 +50,10 @@ object SpeedMacros {
     import c.universe._
     c.Expr[B](q"${c.prefix.tree}.foldLeft(${num.tree}.zero)(${num.tree}.plus)")
   }
+  def sizeImpl[A](c: Context { type PrefixType = MappedRange[A] }): c.Expr[Int] = {
+    import c.universe._
+    c.Expr[Int](q"${c.prefix.tree}.foldLeft(0)((num, _) => num + 1)")
+  }
   def reduceImpl[A1: c.WeakTypeTag](c: Context)(op: c.Expr[(A1, A1) ⇒ A1]): c.Expr[A1] = {
     import c.universe._
     c.Expr[A1] {

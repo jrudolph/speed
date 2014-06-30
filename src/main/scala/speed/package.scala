@@ -43,6 +43,7 @@ package speed {
 
     def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1 = macro SpeedMacros.reduceImpl[A1]
     def sum[B >: A](implicit num: Numeric[B]): B = macro SpeedMacros.sumImpl[A, B]
+    def size: Int = macro SpeedMacros.sizeImpl[A]
     def filter(p: A ⇒ Boolean): MappedRange[A]
 
     // other interesting foldLeft based operators to implement:
@@ -60,6 +61,7 @@ package speed {
     def reduce(op: (Int, Int) ⇒ Int): Int = macro SpeedMacros.reduceImpl[Int]
     def foldLeft[B](init: B)(f: (B, Int) ⇒ B): B = macro SpeedMacros.foldLeftImpl[Int, B]
     def sum(implicit num: Numeric[Int]): Int = macro SpeedMacros.sumImpl[Int, Int]
+    def size: Int = macro SpeedMacros.sizeImpl[Int]
 
     // others:
     // reduceOption

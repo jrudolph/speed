@@ -189,21 +189,25 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "provide min" in {
         (1000 to 1 by -1).min === 1
       }
+      "provide size" in {
+        (5 to 1000).size === (1000 - 5 + 1)
+      }
     }
     "optimize array operations" in {
+      val array = Array.tabulate[Int](100)(identity)
       "foreach" in {
         var counter = 0
-        val array = Array.tabulate[Int](100)(identity)
         for (x ← array) counter += x
         counter === (0 to 99).sum
       }
       "sum" in {
-        val array2 = Array.tabulate[Int](100)(identity)
-        array2.sum === (0 to 99).sum pendingUntilFixed
+        array.sum === (0 to 99).sum pendingUntilFixed
       }
       "mapped sum" in {
-        val array2 = Array.tabulate[Int](100)(identity)
-        array2.map(_ + 1).sum === (1 to 100).sum
+        array.map(_ + 1).sum === (1 to 100).sum
+      }
+      "mapped size" in {
+        array.map(_ + 5).size === 100
       }
     }
   }
