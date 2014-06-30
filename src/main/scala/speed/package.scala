@@ -38,6 +38,7 @@ package speed {
   }
 
   trait MappedRange[A] {
+    final def foreach[T](f: Int ⇒ T): Unit = macro SpeedMacros.foreachImpl[T]
     def flatMap[B](func: A ⇒ MappedRange[B]): MappedRange[B]
     def map[B](func: A ⇒ B): MappedRange[B]
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro SpeedMacros.foldLeftImpl[A, B]

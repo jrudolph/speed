@@ -9,13 +9,13 @@ object SpeedMacros {
 
   def foreachImpl[T](c: Context)(f: c.Expr[Int ⇒ T]): c.Expr[Unit] = {
     val t =
-      new Helper[c.type](c) with MethodHelper {
+      new Helper[c.type](c) with SpeedHelper {
         import c.universe._
 
         def run: Tree = {
           val AnonFunc(valName, application, init) = extractAnonFunc(f.tree)
 
-          finish(generateGeneral(start, end, by, inclusive, Seq(init), valName, application))
+          finish(generateForCallChain(c.prefix.tree, Seq(init), valName, application, q"()"))
         }
       }.run
 
