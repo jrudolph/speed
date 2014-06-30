@@ -172,7 +172,8 @@ object SpeedMacros {
   def showTree[T](c: Context)(t: c.Expr[T]): c.Expr[T] = { println(s"Show '${c.universe.show(t)}'"); t }
 }
 
-trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
+trait SpeedHelper extends ConstantFolding {
+  val c: Context
   import c.universe._
 
   def matchConstructor(tree: Tree): (Tree, Tree, Tree, Boolean) = tree match {
@@ -374,11 +375,11 @@ trait SpeedHelper extends ConstantFolding { self: QuasiquoteCompat ⇒
   def lit(v: Any) = Literal(Constant(v))
 }
 
-trait MethodHelper extends SpeedHelper { self: QuasiquoteCompat ⇒
+trait MethodHelper extends SpeedHelper {
   val (start, end, by, inclusive) = matchConstructor(c.prefix.tree)
 }
 
-abstract class Helper[C <: Context](val c: C) extends QuasiquoteCompat {
+abstract class Helper[C <: Context](val c: C) {
   import c.universe._
 
   def run: Tree

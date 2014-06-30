@@ -3,7 +3,7 @@ package impl
 
 import scala.util.control.NonFatal
 
-trait ConstantFolding { self: SpeedHelper with QuasiquoteCompat ⇒
+trait ConstantFolding { self: SpeedHelper ⇒
   import c.universe._
 
   def finish(tree: Tree): Tree = c.resetAllAttrs(foldConstants(tree))
