@@ -40,6 +40,7 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   sealed trait TerminalOperation
   case class Foreach(f: Closure) extends TerminalOperation
   case class FoldLeft(init: Tree, f: Closure2) extends TerminalOperation
+  case class Reduce(tpe: Type, f: Closure2) extends TerminalOperation
 
   case class Sum(numeric: Tree) extends TerminalOperation
 
@@ -63,6 +64,7 @@ trait Analyzer { self: SpeedImpl ⇒
   def analyze(t: Tree): OperationChain = t match {
     case q"$inner.foreach[..${ _ }]($f)"         ⇒ OperationChain(analyzeGen(inner), Foreach(closure1(f)))
     case q"$inner.foldLeft[..${ _ }]($init)($f)" ⇒ OperationChain(analyzeGen(inner), FoldLeft(init, closure2(f)))
+    case q"$inner.reduce[$t]($f)"                ⇒ OperationChain(analyzeGen(inner), Reduce(t.tpe, closure2(f)))
     case q"$inner.sum[..${ _ }]($num)"           ⇒ OperationChain(analyzeGen(inner), Sum(num))
   }
   def analyzeGen(t: Tree): Generator = t match {
@@ -171,7 +173,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
       TerminalOperationSetup(Seq(f.init), body, q"()")
 
     case FoldLeft(init, f) ⇒
-      val accVar = c.fresh(newTermName("acc"))
+      val accVar = c.fresh(newTermName("acc$"))
       val inits = Seq(q"var $accVar = ${init}", f.init)
 
       val body =
@@ -184,6 +186,41 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
         """
 
       TerminalOperationSetup(inits, body, q"$accVar")
+
+    case Reduce(tpe, f) ⇒
+      val accVar = c.fresh(newTermName("acc$"))
+      val emptyVar = c.fresh(newTermName("empty$"))
+      val Closure2(v1, v2, application, funcInit) = f
+      def b(b: Boolean) = Literal(Constant(b))
+      val a1Type = tpe
+      val neutralA1 = neutralElement(tpe)
+      val inits = Seq(
+        q"var $accVar: $a1Type = $neutralA1",
+        q"var $emptyVar = ${b(true)}",
+        funcInit)
+      val body =
+        q"""
+                if ($emptyVar) {
+                  $emptyVar = ${b(false)}
+                  $accVar = $valName
+                } else
+                  $accVar = {
+                    val $v1 = $accVar
+                    val $v2 = $valName
+                    $application
+                  }
+              """
+
+      val result =
+        q"""
+              if ($emptyVar) throw new UnsupportedOperationException("Can't reduce empty range")
+              else $accVar
+            """
+
+      val res = TerminalOperationSetup(inits, body, result)
+      println(s"Reduce: $res")
+      res
+
   }
 }
 

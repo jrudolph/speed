@@ -11,8 +11,9 @@ trait ContextHelpers { self: WithContext ⇒
   lazy val ByteTag = c.weakTypeOf[Byte]
   lazy val BooleanTag = c.weakTypeOf[Boolean]
   lazy val CharTag = c.weakTypeOf[Char]
-  def neutralElement[A1: c.WeakTypeTag]: Tree =
-    lit(c.universe.weakTypeOf[A1] match {
+  def neutralElement[T: c.WeakTypeTag]: Tree = neutralElement(c.universe.weakTypeOf[T])
+  def neutralElement(tpe: Type): Tree =
+    lit(tpe match {
       case IntTag     ⇒ 0
       case LongTag    ⇒ 0L
       case FloatTag   ⇒ 0f

@@ -148,6 +148,7 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
           (1 to 1000).speedy.map(i ⇒ i * i).sum === (((1 to 1000): Range).map(i ⇒ i * i).sum)
         }
         "reduce for mapped ranges" in {
+          // FIXME: make this a static error
           (1000 to 1).speedy.reduce(_ + _) must throwA[UnsupportedOperationException]
           (1 to 1000).speedy.map(1+).reduce(_ + _) === (2 to 1001).sum
         }
