@@ -5,6 +5,8 @@ import scala.reflect.macros.Context
 object SpeedMacrosV2 {
   def entryF1[T, U, R](c: Context)(f: c.Expr[T ⇒ U]): c.Expr[R] =
     new TransformingSpeedContext[c.type](c).run[R]
+  def entryFoldLeft[T, U](c: Context)(init: c.Expr[U])(f: c.Expr[(U, T) ⇒ U]): c.Expr[U] =
+    new TransformingSpeedContext[c.type](c).run[U]
 }
 
 class TransformingSpeedContext[C <: Context](val c: C) extends SpeedImpl {
@@ -17,8 +19,7 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   import c.universe._
 
   case class Closure(valName: TermName, application: Tree, init: Tree)
-
-  trait Closure2
+  case class Closure2(valName1: TermName, valName2: TermName, application: Tree, init: Tree)
 
   sealed trait Generator
   case class MappingGenerator(inner: Generator, f: Closure) extends Generator
@@ -49,10 +50,11 @@ trait Analyzer { self: SpeedImpl ⇒
   import c.universe._
 
   def analyze(t: Tree): OperationChain = t match {
-    case q"$inner.foreach[..${ _ }]($f)" ⇒ OperationChain(analyzeGen(inner), Foreach(closure1(f)))
+    case q"$inner.foreach[..${ _ }]($f)"         ⇒ OperationChain(analyzeGen(inner), Foreach(closure1(f)))
+    case q"$inner.foldLeft[..${ _ }]($init)($f)" ⇒ OperationChain(analyzeGen(inner), FoldLeft(init, closure2(f)))
   }
   def analyzeGen(t: Tree): Generator = t match {
-    //case q"$inner.map[..${_}]($f)" => MappingGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.map[..${ _ }]($f)" ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
     case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(a)
 
@@ -76,6 +78,16 @@ trait Analyzer { self: SpeedImpl ⇒
       val iVar = c.fresh(newTermName("i"))
       Closure(iVar, q"$fun($iVar)", q"val $fun = $fTree")
   }
+  def closure2(fTree: Tree): Closure2 =
+    fTree match {
+      // try to find literal anonymous functions
+      case q"( ($i1, $i2) => $body )"             ⇒ Closure2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
+      // this matches partial evaluation (like `println _`)
+      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ Closure2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
+      case _ ⇒
+        val fun = c.fresh(newTermName("funInit"))
+        Closure2(newTermName("i1"), newTermName("i2"), q"$fun(i1, i2)", q"val $fun = $fTree")
+    }
 }
 
 trait Generation extends RangeGeneration { self: SpeedImpl ⇒
@@ -121,6 +133,21 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
       """
 
       TerminalOperationSetup(Seq(f.init), body, q"()")
+
+    case FoldLeft(init, f) ⇒
+      val accVar = c.fresh(newTermName("acc"))
+      val inits = Seq(q"var $accVar = ${init}", f.init)
+
+      val body =
+        q"""
+          $accVar = {
+            val ${f.valName1} = $accVar
+            val ${f.valName2} = $valName
+            ${f.application}
+          }
+        """
+
+      TerminalOperationSetup(inits, body, q"$accVar")
   }
 }
 

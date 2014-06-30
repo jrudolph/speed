@@ -19,7 +19,7 @@ package speed {
     def filter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
   }
   trait TerminalOps[A] {
-    def foldLeft[B](init: B)(f: (B, A) ⇒ B): B
+    def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro SpeedMacrosV2.entryFoldLeft[A, B]
     def foreach[T](f: A ⇒ T): Unit = macro SpeedMacrosV2.entryF1[A, T, Unit]
     def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1
     def sum[B >: A](implicit num: Numeric[B]): B
