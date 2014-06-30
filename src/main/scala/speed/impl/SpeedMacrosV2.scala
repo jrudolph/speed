@@ -41,6 +41,9 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   }
   case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Boolean) extends Generator
   case class ArrayGenerator(array: Tree) extends Generator
+  case class InitAddingGenerator(outer: Generator, inits: Seq[Tree]) extends InnerGenerator {
+    def transformOuter(f: Generator ⇒ Generator): InitAddingGenerator = copy(outer = f(outer))
+  }
 
   sealed trait TerminalOperation
   case class Foreach(f: Closure) extends TerminalOperation
@@ -123,18 +126,24 @@ trait Analyzer { self: SpeedImpl ⇒
 
 trait Generation extends RangeGeneration { self: SpeedImpl ⇒
   import c.universe._
+  case class GeneratorSetup(inits: Seq[Tree], body: Tree) {
+    def prependInits(inits: Seq[Tree]): GeneratorSetup = copy(inits = inits ++ this.inits)
+  }
+  object GeneratorSetup {
+    implicit def treeToSetup(t: Tree): GeneratorSetup = GeneratorSetup(Nil, t)
+  }
   case class TerminalOperationSetup(inits: Seq[Tree], inner: Tree, result: Tree)
 
   def generate(chain: OperationChain): Tree = {
     val varName = newTermName(c.fresh("yyyy$"))
 
     val term = generateTerminal(chain.terminal, varName)
-    println(s"Term: $term")
-    val gen = generateGen(chain.generator, varName, term.inner)
-    println(s"Gen: $gen")
+    //println(s"Term: $term")
+    val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner)
+    //println(s"Gen: $gen")
 
     q"""
-      ..${term.inits}
+      ..${genInits ++ term.inits}
 
       $gen
 
@@ -142,7 +151,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
     """
   }
 
-  def generateGen(gen: Generator, expectedValName: TermName, application: Tree): Tree = gen match {
+  def generateGen(gen: Generator, expectedValName: TermName, application: Tree): GeneratorSetup = gen match {
     case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application)
     case MappingGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
@@ -158,8 +167,8 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
       generateGen(outer, tempName, body)
 
     case FlatMappingGenerator(outer, innerValName, innerGenerator) ⇒
-      val innerLoop = generateGen(innerGenerator, expectedValName, application)
-      generateGen(outer, innerValName, innerLoop)
+      val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application)
+      generateGen(outer, innerValName, innerLoop).prependInits(inits)
 
     case FilteringGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
@@ -175,6 +184,8 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
           """
 
       generateGen(outer, tempName, body)
+
+    case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application).prependInits(inits)
 
     //case _ => q"()"
   }
@@ -217,16 +228,16 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
         funcInit)
       val body =
         q"""
-                if ($emptyVar) {
-                  $emptyVar = ${b(false)}
-                  $accVar = $valName
-                } else
-                  $accVar = {
-                    val $v1 = $accVar
-                    val $v2 = $valName
-                    $application
-                  }
-              """
+          if ($emptyVar) {
+            $emptyVar = ${b(false)}
+            $accVar = $valName
+          } else
+            $accVar = {
+              val $v1 = $accVar
+              val $v2 = $valName
+              $application
+            }
+        """
 
       val result =
         q"""
@@ -234,10 +245,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
               else $accVar
             """
 
-      val res = TerminalOperationSetup(inits, body, result)
-      println(s"Reduce: $res")
-      res
-
+      TerminalOperationSetup(inits, body, result)
   }
 }
 
@@ -343,7 +351,12 @@ trait Optimizer { self: SpeedImpl ⇒
 
   def optimizeGen(gen: Generator): Generator = gen match {
     case ArrayGenerator(array) ⇒
-      MappingGenerator(RangeGenerator(q"0", q"$array.length", q"1", false), Closure("idx", q"$array(idx)", q""))
+      val arrayVar = c.fresh(newTermName("array$"))
+      val init = q"val $arrayVar = $array: @speed.dontfold"
+
+      InitAddingGenerator(
+        MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", false), Closure("idx", q"$arrayVar(idx)", q"")),
+        Seq(init))
     case i: InnerGenerator ⇒ i.transformOuter(optimizeGen)
     case _                 ⇒ gen
   }
