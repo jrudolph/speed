@@ -1,5 +1,5 @@
 import scala.language.experimental.macros
-import speed.impl.SpeedMacros
+import speed.impl.SpeedMacrosV2
 
 package object speed {
   implicit class RangesAreSpeedy(range: Range) extends Speedy[Int]
@@ -19,10 +19,10 @@ package speed {
     def filter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
   }
   trait TerminalOps[A] {
-    def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = ???
-    def foreach[T](f: A ⇒ T): Unit = ???
-    def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1 = ???
-    def sum[B >: A](implicit num: Numeric[B]): B = ???
+    def foldLeft[B](init: B)(f: (B, A) ⇒ B): B
+    def foreach[T](f: A ⇒ T): Unit = macro SpeedMacrosV2.entryF1[A, T, Unit]
+    def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1
+    def sum[B >: A](implicit num: Numeric[B]): B
     def min[B >: A](implicit cmp: Ordering[B]): A
     def max[B >: A](implicit cmp: Ordering[B]): A
     def size: Int = ???

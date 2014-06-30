@@ -126,13 +126,17 @@ object SpeedMacros {
     }
 
   def rangeForeachImpl(c: Context)(range: c.Expr[Any]): c.Expr[(List[Int], List[Int])] = {
+    import c.universe._
+
     val r = range.asInstanceOf[c.Expr[Range]]
+    val rSpeedy = c.Expr[Range](q"$range.speedy")
+
     c.universe.reify {
       import speed._
       val buffer = new scala.collection.mutable.ListBuffer[Int]
       var count = 0
       val x = 12
-      r.splice.speedy.foreach { element ⇒
+      rSpeedy.splice.foreach { element ⇒
         val gap = x
         require(count < 1000, "Too many iterations needed")
         count += 1
@@ -172,7 +176,7 @@ object SpeedMacros {
   def showTree[T](c: Context)(t: c.Expr[T]): c.Expr[T] = { println(s"Show '${c.universe.show(t)}'"); t }
 }
 
-trait SpeedHelper extends ConstantFolding {
+trait SpeedHelper extends WithContext with ConstantFolding {
   val c: Context
   import c.universe._
 
@@ -320,8 +324,6 @@ trait SpeedHelper extends ConstantFolding {
       $blockExpr
     """
   }
-
-  def trace(msg: String): Unit = {}
 
   case class AnonFunc(valName: TermName, application: Tree, init: Tree)
 
