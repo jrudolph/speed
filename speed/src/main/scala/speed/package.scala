@@ -27,6 +27,7 @@ package speed {
     def sum[B >: A](implicit i: Numeric[B]): B = macro MacroEntry.entryImplicitP1[Numeric[B], B]
     def min[B >: A](implicit i: Ordering[B]): A = macro MacroEntry.entryImplicitP1[Ordering[B], A]
     def max[B >: A](implicit i: Ordering[B]): A = macro MacroEntry.entryImplicitP1[Ordering[B], A]
+    def count(f: A ⇒ Boolean): Int = macro MacroEntry.entryP1[Int]
     def size: Int = macro MacroEntry.entryP0[Int]
 
     // other interesting foldLeft based operators to implement:

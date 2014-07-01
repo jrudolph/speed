@@ -38,6 +38,10 @@ trait Model { self: SpeedImpl ⇒
   case class Min(ordering: Tree) extends TerminalOperation
   case class Max(ordering: Tree) extends TerminalOperation
   case object Size extends TerminalOperation
+  case class Count(closure: Closure) extends TerminalOperation
+
+  /** A special kind of terminal operation that allows to append generator stages */
+  case class GenerationChangingTerminal(add: Generator ⇒ InnerGenerator, term: TerminalOperation) extends TerminalOperation
 
   case class OperationChain(generator: Generator, terminal: TerminalOperation)
 }

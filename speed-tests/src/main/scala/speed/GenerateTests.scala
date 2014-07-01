@@ -55,6 +55,16 @@ object GenerateTests {
             (coll.speedy.reduce(_ * _) === coll.reduce(_ * _))
         }
       }
+      "size" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.size === coll.size
+        }
+      }
+      "count" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.count(_ > numeric.zero) === coll.count(_ > numeric.zero)
+        }
+      }
     }
     """
   }

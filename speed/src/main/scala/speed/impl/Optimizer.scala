@@ -1,10 +1,19 @@
 package speed.impl
 
+import scala.annotation.tailrec
+
 trait Optimizer { self: SpeedImpl ⇒
   import c.universe._
 
-  def optimize(chain: OperationChain): OperationChain =
-    OperationChain(optimizeGen(chain.generator), optimizeTerminal(chain.terminal))
+  def optimize(chain: OperationChain): OperationChain = {
+    @tailrec def optimizeTerminalOnce(chain: OperationChain): OperationChain =
+      optimizeTerminal(chain.terminal) match {
+        case GenerationChangingTerminal(cons, term) ⇒ optimizeTerminalOnce(OperationChain(cons(chain.generator), term))
+        case term @ _                               ⇒ OperationChain(optimizeGen(chain.generator), term)
+      }
+
+    optimizeTerminalOnce(chain)
+  }
 
   def optimizeGen(gen: Generator): Generator = gen match {
     case ArrayGenerator(array) ⇒
@@ -23,6 +32,7 @@ trait Optimizer { self: SpeedImpl ⇒
     case Min(ord) ⇒ minOrMax("min", ord)
     case Max(ord) ⇒ minOrMax("max", ord)
     case Size     ⇒ FoldLeft(q"0", closure2(q"((num, _) => num + 1)"))
+    case Count(f) ⇒ GenerationChangingTerminal(FilteringGenerator(_, f), Size)
     case _        ⇒ terminal
   }
 
