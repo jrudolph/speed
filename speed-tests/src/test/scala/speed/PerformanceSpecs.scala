@@ -1,5 +1,7 @@
 package speed
 
+import scala.annotation.tailrec
+
 import org.specs2.mutable.Specification
 import ichi.bench.Thyme
 import speed.impl.Debug.show
@@ -151,7 +153,7 @@ class PerformanceSpecs extends Specification {
           counter
         } {
           var counter = 0
-          for (x ← Predef.wrapIntArray(array)) counter += x * x
+          for (x ← array) counter += x * x
           counter
         }
       }
@@ -169,7 +171,7 @@ class PerformanceSpecs extends Specification {
           }
           counter
         } {
-          Predef.wrapIntArray(array).sum
+          array.sum
         }
       }
       "array filtered summing" in {
@@ -186,7 +188,7 @@ class PerformanceSpecs extends Specification {
           }
           counter
         } {
-          Predef.wrapIntArray(array).filter(_ % 3 == 0).sum
+          array.view.filter(_ % 3 == 0).sum
         }
       }
       "array mapped summing" in {
@@ -203,9 +205,7 @@ class PerformanceSpecs extends Specification {
           }
           counter
         } {
-          var counter = 0
-          for (x ← Predef.wrapIntArray(array)) counter += x * x
-          counter
+          array.view.map(x ⇒ x * x).sum
         }
       }
       "size of filtered ref array" in {
@@ -228,7 +228,8 @@ class PerformanceSpecs extends Specification {
           }
           count
         } {
-          Predef.wrapRefArray(refs)
+          refs
+            .view
             .filter(_.num % 5 == 0)
             .filter(_.num % 7 == 0)
             .size
@@ -284,7 +285,7 @@ class PerformanceSpecs extends Specification {
             }
           sum(list, 0)
         } {
-          list.filter(_ % 3 == 0).sum
+          list.view.filter(_ % 3 == 0).sum
         }
       }
       "list mapped summing" in {
@@ -299,10 +300,9 @@ class PerformanceSpecs extends Specification {
             }
           sum(list, 0)
         } {
-          (for (x ← list) yield x * x).sum
+          (for (x ← list.view) yield x * x).sum
         }
       }
-      only("array")
       "nested list summing" in {
         val list1 = List.tabulate[Int](100)(identity)
         val list2 = List.tabulate[Int](100)(identity)
@@ -321,7 +321,7 @@ class PerformanceSpecs extends Specification {
             }
           sum1(list1, 0)
         } {
-          (for (x ← list1; y ← list2) yield x * y).sum
+          (for (x ← list1.view; y ← list2.view) yield x * y).sum
         }
       }
     }
