@@ -25,19 +25,17 @@ object SpeedBuild extends Build {
   lazy val speed =
     Project("speed", file("speed"))
       .settings(commonSettings: _*)
-      .settings(
-        // make sure to recompile tests every time
-        cleanFiles in Test <<= Seq(classDirectory in Test).join,
-        cleanKeepFiles in Test := Nil,
-        clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean,
-        compile in Test <<= (compile in Test).dependsOn(clean in Test)
-      )
 
   lazy val speedTests =
     Project("speed-tests", file("speed-tests"))
       .dependsOn(speed)
       .settings(commonSettings: _*)
       .settings(
-        unmanagedBase in Test <<= baseDirectory / "test-lib"
+        unmanagedBase in Test <<= baseDirectory / "test-lib",
+        // make sure to recompile tests every time
+        cleanFiles in Test <<= Seq(classDirectory in Test).join,
+        cleanKeepFiles in Test := Nil,
+        clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean,
+        compile in Test <<= (compile in Test).dependsOn(clean in Test)
       )
 }
