@@ -14,7 +14,9 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class Closure(valName: TermName, application: Tree, init: Tree)
   case class Closure2(valName1: TermName, valName2: TermName, application: Tree, init: Tree)
 
-  sealed trait Generator
+  sealed trait Generator {
+    def withInits(inits: Tree*): InitAddingGenerator = InitAddingGenerator(this, inits)
+  }
   sealed trait InnerGenerator extends Generator {
     def outer: Generator
     def transformOuter(f: Generator ⇒ Generator): InnerGenerator
@@ -28,7 +30,7 @@ trait SpeedImpl extends WithContext with Analyzer with Generation with Optimizer
   case class FilteringGenerator(outer: Generator, f: Closure) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): FilteringGenerator = copy(outer = f(outer))
   }
-  case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Boolean) extends Generator
+  case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Tree) extends Generator
   case class ArrayGenerator(array: Tree) extends Generator
   case class InitAddingGenerator(outer: Generator, inits: Seq[Tree]) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): InitAddingGenerator = copy(outer = f(outer))

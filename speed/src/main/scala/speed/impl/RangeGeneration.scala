@@ -3,9 +3,7 @@ package speed.impl
 trait RangeGeneration { self: SpeedImpl ⇒
   import c.universe._
 
-  def generateRange(start: Tree, end: Tree, step: Tree, isInclusive: Boolean, varName: TermName, application: Tree): Tree = {
-    val upOp = newTermName(if (isInclusive) "$less$eq" else "$less")
-    val downOp = newTermName(if (isInclusive) "$greater$eq" else "$greater")
+  def generateRange(start: Tree, end: Tree, step: Tree, isInclusive: Tree, varName: TermName, application: Tree): Tree = {
     val startVar = c.fresh(newTermName("start"))
     val endVar = c.fresh(newTermName("end"))
     val stepVar = c.fresh(newTermName("step"))
@@ -42,10 +40,10 @@ trait RangeGeneration { self: SpeedImpl ⇒
       case 1 ⇒ // count up
         q"""
           var $varName = $start
-          val $endVar = $end
+          val $endVar = if ($isInclusive) $end + 1 else $end
           val $stepVar = $step
 
-          while ($varName $upOp $endVar) {
+          while ($varName < $endVar) {
             $application
             $varName += $stepVar
           }
@@ -53,10 +51,10 @@ trait RangeGeneration { self: SpeedImpl ⇒
       case -1 ⇒ // count down
         q"""
           var $varName = $start
-          val $endVar = $end
+          val $endVar = if ($isInclusive) $end - 1 else $end
           val $stepVar = $step
 
-          while ($varName $downOp $endVar) {
+          while ($varName > $endVar) {
             $application
             $varName += $stepVar
           }

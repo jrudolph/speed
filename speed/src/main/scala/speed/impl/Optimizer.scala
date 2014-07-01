@@ -12,7 +12,7 @@ trait Optimizer { self: SpeedImpl ⇒
       val init = q"val $arrayVar = $array"
 
       InitAddingGenerator(
-        MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", false), Closure("idx", q"$arrayVar(idx)", q"")),
+        MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", q"false"), Closure("idx", q"$arrayVar(idx)", q"")),
         Seq(init))
     case i: InnerGenerator ⇒ i.transformOuter(optimizeGen)
     case _                 ⇒ gen

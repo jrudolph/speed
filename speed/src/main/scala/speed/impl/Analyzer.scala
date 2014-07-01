@@ -25,11 +25,16 @@ trait Analyzer { self: SpeedImpl ⇒
 
     case _ ⇒ error(s"Unknown Prefix: $t")
   }
-  def range(t: Tree): RangeGenerator = t match {
-    case q"${ _ }.intWrapper($from).to($to)"               ⇒ RangeGenerator(from, to, c.literal(1).tree, true)
-    case q"${ _ }.intWrapper($from).to($to).by($by)"       ⇒ RangeGenerator(from, to, by, true)
-    case q"${ _ }.intWrapper($from).until($until)"         ⇒ RangeGenerator(from, until, c.literal(1).tree, false)
-    case q"${ _ }.intWrapper($from).until($until).by($by)" ⇒ RangeGenerator(from, until, by, false)
+  def range(t: Tree): Generator = t match {
+    case q"${ _ }.intWrapper($from).to($to)"               ⇒ RangeGenerator(from, to, c.literal(1).tree, q"true")
+    case q"${ _ }.intWrapper($from).to($to).by($by)"       ⇒ RangeGenerator(from, to, by, q"true")
+    case q"${ _ }.intWrapper($from).until($until)"         ⇒ RangeGenerator(from, until, c.literal(1).tree, q"false")
+    case q"${ _ }.intWrapper($from).until($until).by($by)" ⇒ RangeGenerator(from, until, by, q"false")
+    case _ ⇒
+      val rangeVar = c.fresh(newTermName("range$"))
+      val init = q"val $rangeVar = $t: @speed.dontfold"
+      RangeGenerator(q"$rangeVar.start", q"$rangeVar.end", q"$rangeVar.step", q"$rangeVar.isInclusive")
+        .withInits(init)
   }
   def closure1(fTree: Tree): Closure = fTree match {
     // try to find literal anonymous functions

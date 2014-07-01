@@ -198,6 +198,12 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "provide size" in {
         (5 to 1000).speedy.size === (1000 - 5 + 1)
       }
+
+      "work with range variables" in {
+        val r = (5 to 1000)
+
+        r.speedy.map(x ⇒ x * x).sum === r.map(x ⇒ x * x).sum
+      }
     }
     "optimize array operations" in {
       val array = Array.tabulate[Int](100)(identity)
