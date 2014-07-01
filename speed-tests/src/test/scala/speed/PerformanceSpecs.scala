@@ -113,6 +113,25 @@ class PerformanceSpecs extends Specification {
           (1 to 1000: Range).map(i ⇒ i * i).sum
         }
       }
+      /*only("range variable summing")
+      "range variable summing" in {
+        val r = (1 to 1000)
+        beSimilarlyFast("summing") {
+          r.speedy.map(x ⇒ x * x).sum
+        } {
+          // this is not a fair comparison: here the loop knows statically
+          // all of start, end, step and inclusive
+          var counter = 0
+          var i = 1
+          while (i <= 1000) {
+            counter += i * i
+            i += 1
+          }
+          counter
+        } {
+          r.map(x ⇒ x * x).sum
+        }
+      }*/
     }
     "improve speed of Array methods" in {
       "array foreach counting" in {

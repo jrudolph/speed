@@ -21,6 +21,10 @@ class CheckTests extends Specification with ScalaCheck {
       type Res = Numeric[T]
       def res = num
     }
+  implicit object RangeNumericExtractor extends NumericExtractor[Range] {
+    type Res = Numeric[Int]
+    def res = implicitly[Numeric[Int]]
+  }
   def num[T](implicit ex: NumericExtractor[T]): ex.Res = ex.res
 
   implicit object RefIsNumeric extends Numeric[Ref] {
@@ -43,6 +47,13 @@ class CheckTests extends Specification with ScalaCheck {
     } yield Ref(i)
 
   implicit val genRefArray = Arbitrary(Gen.containerOf[Array, Ref](genRef))
+  implicit val genRange = Arbitrary {
+    for {
+      start ← Gen.choose(Int.MinValue / 4, Int.MaxValue / 4)
+      size ← Gen.choose(0, 8)
+      step ← Gen.oneOf(1, 2, 3, -1) //Gen.oneOf(1, -1, 3, -3, 5, -5, 99, -99, 100, -100)
+    } yield start to (start + size) by step
+  }
 
   //implicit val arbDouble = Arbitrary(Arbitrary.arbDouble.arbitrary suchThat (!java.lang.Double.isNaN(_)))
 
@@ -51,4 +62,6 @@ class CheckTests extends Specification with ScalaCheck {
   //GenerateTests.generateTests[Array[Double]]()
   //GenerateTests.generateTests[Array[Float]]()
   GenerateTests.generateTests[Array[Ref]]()
+
+  GenerateTests.generateTests[Range]()
 }
