@@ -16,7 +16,7 @@ trait Optimizer { self: SpeedImpl ⇒
   }
 
   def optimizeGen(gen: Generator): Generator = gen match {
-    case ArrayGenerator(array) ⇒
+    case IndexedGenerator(array) ⇒
       val arrayVar = c.fresh(newTermName("array$"))
       val init = q"val $arrayVar = $array"
 

@@ -25,7 +25,8 @@ trait Analyzer { self: SpeedImpl ⇒
       FlatMappingGenerator(analyzeGen(inner), valName, analyzeGen(innerGeneratorTree))
 
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
-    case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(q"$a: @speed.dontfold")
+    case q"${ _ }.IndexedSeqsAreSpeedy[..${ _ }]($s).speedy" ⇒ IndexedGenerator(q"$s: @speed.dontfold")
+    case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ IndexedGenerator(q"$a: @speed.dontfold")
     case q"${ _ }.ListsAreSpeedy[..${ _ }]($l).speedy" ⇒ ListGenerator(q"$l: @speed.dontfold", l.tpe.widen)
 
     case _ ⇒ error(s"Unknown Prefix: $t")

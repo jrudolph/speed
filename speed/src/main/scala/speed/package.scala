@@ -1,3 +1,4 @@
+import scala.collection.immutable
 import scala.language.experimental.macros
 import speed.impl.MacroEntry
 
@@ -5,6 +6,7 @@ package object speed {
   implicit class RangesAreSpeedy(range: Range) extends Speedy[Int]
   implicit class ArraysAreSpeedy[A](range: Array[A]) extends Speedy[A]
   implicit class ListsAreSpeedy[A](list: List[A]) extends Speedy[A]
+  implicit class IndexedSeqsAreSpeedy[A](seq: immutable.IndexedSeq[A]) extends Speedy[A]
 
   def compileTimeOnly = ???
 }

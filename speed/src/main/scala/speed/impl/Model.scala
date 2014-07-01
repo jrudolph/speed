@@ -26,7 +26,7 @@ trait Model { self: SpeedImpl ⇒
     def transformOuter(f: Generator ⇒ Generator): ReverseGenerator = copy(outer = f(outer))
   }
   case class RangeGenerator(start: Tree, end: Tree, by: Tree, inclusive: Tree) extends Generator
-  case class ArrayGenerator(array: Tree) extends Generator
+  case class IndexedGenerator(array: Tree) extends Generator
   case class ListGenerator(list: Tree, listTpe: Type) extends Generator
   case class InitAddingGenerator(outer: Generator, inits: Seq[Tree]) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): InitAddingGenerator = copy(outer = f(outer))
