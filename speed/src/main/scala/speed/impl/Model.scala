@@ -39,6 +39,7 @@ trait Model { self: SpeedImpl ⇒
   case class Max(ordering: Tree) extends TerminalOperation
   case object Size extends TerminalOperation
   case class Count(closure: Closure) extends TerminalOperation
+  case object MkString extends TerminalOperation
 
   /** A special kind of terminal operation that allows to append generator stages */
   case class GenerationChangingTerminal(add: Generator ⇒ InnerGenerator, term: TerminalOperation) extends TerminalOperation

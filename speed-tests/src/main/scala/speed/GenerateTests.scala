@@ -65,6 +65,11 @@ object GenerateTests {
             coll.speedy.count(_ > numeric.zero) === coll.count(_ > numeric.zero)
         }
       }
+      "mkString" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.mkString === coll.mkString
+        }
+      }
     }
     """
   }

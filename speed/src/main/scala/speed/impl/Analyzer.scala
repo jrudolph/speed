@@ -12,6 +12,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.max[..${ _ }]($ord)"           ⇒ OperationChain(analyzeGen(inner), Max(ord))
     case q"$inner.size"                          ⇒ OperationChain(analyzeGen(inner), Size)
     case q"$inner.count($f)"                     ⇒ OperationChain(analyzeGen(inner), Count(closure1(f)))
+    case q"$inner.mkString"                      ⇒ OperationChain(analyzeGen(inner), MkString)
   }
   def analyzeGen(t: Tree): Generator = t match {
     case q"$inner.map[..${ _ }]($f)"        ⇒ MappingGenerator(analyzeGen(inner), closure1(f))

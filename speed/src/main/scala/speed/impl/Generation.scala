@@ -123,5 +123,13 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
             """
 
       TerminalOperationSetup(inits, body, result)
+
+    case MkString â‡’
+      val sbVar = c.fresh(newTermName("sb$"))
+      val init = q"val $sbVar = new java.lang.StringBuilder"
+      val body = q"$sbVar.append($valName.toString)"
+      val result = q"$sbVar.toString"
+
+      TerminalOperationSetup(Seq(init), body, result)
   }
 }
