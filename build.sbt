@@ -5,6 +5,7 @@ scalacOptions ++= Seq(
 )
 
 libraryDependencies ++= Seq(
+  "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
   "org.specs2" %% "specs2" % "2.3.12" % "test"
 ) ++ (
   if (scalaVersion.value.startsWith("2.10")) List("org.scalamacros" %% "quasiquotes" % "2.0.0")
