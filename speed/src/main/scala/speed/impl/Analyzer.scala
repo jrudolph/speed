@@ -30,6 +30,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"${ _ }.intWrapper($from).to($to).by($by)"       ⇒ RangeGenerator(from, to, by, q"true")
     case q"${ _ }.intWrapper($from).until($until)"         ⇒ RangeGenerator(from, until, c.literal(1).tree, q"false")
     case q"${ _ }.intWrapper($from).until($until).by($by)" ⇒ RangeGenerator(from, until, by, q"false")
+    case Block(inits, expr)                                ⇒ range(expr).withInits(inits: _*)
     case _ ⇒
       val rangeVar = c.fresh(newTermName("range$"))
       val init = q"val $rangeVar = $t: @speed.dontfold"

@@ -204,6 +204,15 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
 
         r.speedy.map(x ⇒ x * x).sum === r.map(x ⇒ x * x).sum
       }
+      "work with blocks returning a static range" in {
+        {
+          val d = 12
+          def f(x: Int) = x * x
+          val y = f(d)
+
+          (y to 1000)
+        }.speedy.map(x ⇒ x * x).sum === (144 to 1000).map(x ⇒ x * x).sum
+      }
     }
     "optimize array operations" in {
       val array = Array.tabulate[Int](100)(identity)
