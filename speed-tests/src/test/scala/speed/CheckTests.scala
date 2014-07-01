@@ -8,19 +8,16 @@ class CheckTests extends Specification with ScalaCheck {
   "Array[Int]" should {
     "sum" in {
       prop { (array: Array[Int]) ⇒
-        println(array)
         array.speedy.sum === array.sum
       }
     }
     "min" in {
       prop { (array: Array[Int]) ⇒
-        println(array)
         array.speedy.min === array.min
       }
     }
     "max" in {
       prop { (array: Array[Int]) ⇒
-        println(array)
         array.speedy.max === array.max
       }
     }

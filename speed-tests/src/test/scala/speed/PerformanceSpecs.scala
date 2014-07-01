@@ -2,6 +2,7 @@ package speed
 
 import org.specs2.mutable.Specification
 import ichi.bench.Thyme
+import speed.impl.Debug.show
 
 object ThymeExtras {
   implicit class ComparisonExtra(comp: Thyme.Comparison) {
