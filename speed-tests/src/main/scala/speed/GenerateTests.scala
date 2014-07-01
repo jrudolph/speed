@@ -20,39 +20,39 @@ object GenerateTests {
       import Ordering.Implicits._
 
       "sum" in {
-        prop { (array: $typTree) ⇒
-          array.speedy.sum === array.sum
+        prop { (coll: $typTree) ⇒
+          coll.speedy.sum === coll.sum
         }
       }
       "min" in {
-        prop { (array: $typTree) ⇒
-          array.nonEmpty ==> (array.speedy.min === array.min)
+        prop { (coll: $typTree) ⇒
+          coll.nonEmpty ==> (coll.speedy.min === coll.min)
         }
       }
       "max" in {
-        prop { (array: $typTree) ⇒
-          array.nonEmpty ==> (array.speedy.max === array.max)
+        prop { (coll: $typTree) ⇒
+          coll.nonEmpty ==> (coll.speedy.max === coll.max)
         }
       }
       "mapped sum" in {
-        prop { (array: $typTree) ⇒
-          array.speedy.map(x => x * x).sum === array.map(x => x * x).sum
+        prop { (coll: $typTree) ⇒
+          coll.speedy.map(x => x * x).sum === coll.map(x => x * x).sum
         }
       }
       "filtered sum" in {
-        prop { (array: $typTree) ⇒
-          array.speedy.filter(_ > numeric.zero).sum === array.filter(_ > numeric.zero).sum
+        prop { (coll: $typTree) ⇒
+          coll.speedy.filter(_ > numeric.zero).sum === coll.filter(_ > numeric.zero).sum
         }
       }
       "foldLeft" in {
-        prop { (array: $typTree) ⇒
-          array.speedy.foldLeft(numeric.one)(_ * _) === array.foldLeft(numeric.one)(_ * _)
+        prop { (coll: $typTree) ⇒
+          coll.speedy.foldLeft(numeric.one)(_ * _) === coll.foldLeft(numeric.one)(_ * _)
         }
       }
       "reduce" in {
-        prop { (array: $typTree) ⇒
-          array.nonEmpty ==>
-            (array.speedy.reduce(_ * _) === array.reduce(_ * _))
+        prop { (coll: $typTree) ⇒
+          coll.nonEmpty ==>
+            (coll.speedy.reduce(_ * _) === coll.reduce(_ * _))
         }
       }
     }
