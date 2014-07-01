@@ -13,8 +13,9 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.size"                          ⇒ OperationChain(analyzeGen(inner), Size)
   }
   def analyzeGen(t: Tree): Generator = t match {
-    case q"$inner.map[..${ _ }]($f)"    ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
-    case q"$inner.filter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.map[..${ _ }]($f)"        ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.filter[..${ _ }]($f)"     ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
+    case q"$inner.withFilter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.flatMap[..${ _ }]($f)" ⇒
       val Closure(valName, q"$innerGeneratorTree: @speed.dontfold", _) = closure1(f)
 

@@ -17,6 +17,7 @@ package speed {
     def flatMap[B](func: A ⇒ OptimizedColl[B]): OptimizedColl[B] = compileTimeOnly
     def map[B](func: A ⇒ B): OptimizedColl[B] = compileTimeOnly
     def filter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
+    def withFilter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
   }
   trait TerminalOps[A] {
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro MacroEntry.entryFoldLeft[A, B]

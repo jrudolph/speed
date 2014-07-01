@@ -189,6 +189,19 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
             ((1 to 1000): Range).map(_.toString).filter(_.length == 2).reduce(_ + _)
         }
       }
+      "provide withFilter" in {
+        "simple" in {
+          {
+            for {
+              x ← (0 to 1000).speedy if x % 2 == 0
+            } yield x * x
+          }.sum === {
+            for {
+              x ← (0 to 1000) if x % 2 == 0
+            } yield x * x
+          }.sum
+        }
+      }
       "provide min" in {
         (1000 to 1 by -1).speedy.min === 1
       }
