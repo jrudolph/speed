@@ -64,4 +64,6 @@ class CheckTests extends Specification with ScalaCheck {
   GenerateTests.generateTests[Array[Ref]]()
 
   GenerateTests.generateTests[Range]()
+  GenerateTests.generateTests[List[Int]]()
+  GenerateTests.generateTests[List[Long]]()
 }
