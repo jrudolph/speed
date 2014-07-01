@@ -90,7 +90,7 @@ trait Analyzer { self: SpeedImpl ⇒
       FlatMappingGenerator(analyzeGen(inner), valName, analyzeGen(innerGeneratorTree))
 
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
-    case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(a)
+    case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ ArrayGenerator(q"$a: @speed.dontfold")
 
     case _ ⇒ error(s"Unknown Prefix: $t")
   }
@@ -352,7 +352,7 @@ trait Optimizer { self: SpeedImpl ⇒
   def optimizeGen(gen: Generator): Generator = gen match {
     case ArrayGenerator(array) ⇒
       val arrayVar = c.fresh(newTermName("array$"))
-      val init = q"val $arrayVar = $array: @speed.dontfold"
+      val init = q"val $arrayVar = $array"
 
       InitAddingGenerator(
         MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", false), Closure("idx", q"$arrayVar(idx)", q"")),
