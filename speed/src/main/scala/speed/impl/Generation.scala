@@ -1,6 +1,6 @@
 package speed.impl
 
-trait Generation extends RangeGeneration { self: SpeedImpl ⇒
+trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl ⇒
   import c.universe._
   case class GeneratorSetup(inits: Seq[Tree], body: Tree) {
     def prependInits(inits: Seq[Tree]): GeneratorSetup = copy(inits = inits ++ this.inits)
@@ -29,6 +29,7 @@ trait Generation extends RangeGeneration { self: SpeedImpl ⇒
 
   def generateGen(gen: Generator, expectedValName: TermName, application: Tree): GeneratorSetup = gen match {
     case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application)
+    case ListGenerator(l, tpe)                ⇒ generateList(l, tpe, expectedValName, application)
     case MappingGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
       val body =

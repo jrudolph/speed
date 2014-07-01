@@ -235,6 +235,96 @@ class PerformanceSpecs extends Specification {
         }
       }
     }
+    "improve speed of List methods" in {
+      "list foreach counting" in {
+        val list = List.tabulate[Int](1000)(identity)
+        beSimilarlyFast("list foreach counting") {
+          var counter = 0
+          for (x ← list.speedy) counter += x * x
+          counter
+        } {
+          @tailrec def sum(l: List[Int], cur: Int): Int =
+            l match {
+              case h :: t ⇒ sum(t, cur + h * h)
+              case Nil    ⇒ cur
+            }
+          sum(list, 0)
+        } {
+          var counter = 0
+          for (x ← list) counter += x * x
+          counter
+        }
+      }
+      "list summing" in {
+        val list = List.tabulate[Int](1000)(identity)
+        beSimilarlyFast("list summing") {
+          list.speedy.sum
+        } {
+          @tailrec def sum(l: List[Int], cur: Int): Int =
+            l match {
+              case h :: t ⇒ sum(t, cur + h)
+              case Nil    ⇒ cur
+            }
+          sum(list, 0)
+        } {
+          list.sum
+        }
+      }
+      "list filtered summing" in {
+        val list = List.tabulate[Int](1000)(_ * 2)
+        beSimilarlyFast("list filtered summing") {
+          list.speedy.filter(_ % 3 == 0).sum
+        } {
+          @tailrec def sum(l: List[Int], cur: Int): Int =
+            l match {
+              case h :: t ⇒
+                val next = if (h % 3 == 0) cur + h else cur
+                sum(t, next)
+              case Nil ⇒ cur
+            }
+          sum(list, 0)
+        } {
+          list.filter(_ % 3 == 0).sum
+        }
+      }
+      "list mapped summing" in {
+        val list = List.tabulate[Int](1000)(identity)
+        beSimilarlyFast("list mapped summing") {
+          list.speedy.map(x ⇒ x * x).sum
+        } {
+          @tailrec def sum(l: List[Int], cur: Int): Int =
+            l match {
+              case h :: t ⇒ sum(t, cur + h * h)
+              case Nil    ⇒ cur
+            }
+          sum(list, 0)
+        } {
+          (for (x ← list) yield x * x).sum
+        }
+      }
+      only("array")
+      "nested list summing" in {
+        val list1 = List.tabulate[Int](100)(identity)
+        val list2 = List.tabulate[Int](100)(identity)
+        beSimilarlyFast("nested list summing") {
+          (for (x ← list1.speedy; y ← list2.speedy) yield x * y).sum
+        } {
+          @tailrec def sum2(l: List[Int], x: Int, cur: Int): Int =
+            l match {
+              case h :: t ⇒ sum2(t, x, cur + x * h)
+              case Nil    ⇒ cur
+            }
+          @tailrec def sum1(l: List[Int], cur: Int): Int =
+            l match {
+              case h :: t ⇒ sum1(t, sum2(list2, h, cur))
+              case Nil    ⇒ cur
+            }
+          sum1(list1, 0)
+        } {
+          (for (x ← list1; y ← list2) yield x * y).sum
+        }
+      }
+    }
   }
 
   import ThymeExtras._

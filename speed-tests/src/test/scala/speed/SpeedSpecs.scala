@@ -244,6 +244,23 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
         array.speedy.map(_ + 5).size === 100
       }
     }
+    "optimize list operations" in {
+      val list = List.tabulate[Int](100)(identity)
+      "foreach" in {
+        var counter = 0
+        for (x ← list.speedy) counter += x
+        counter === (0 to 99).sum
+      }
+      "sum" in {
+        list.speedy.sum === (0 to 99).sum
+      }
+      "mapped sum" in {
+        list.speedy.map(_ + 1).sum === (1 to 100).sum
+      }
+      "mapped size" in {
+        list.speedy.map(_ + 5).size === 100
+      }
+    }
   }
 }
 
