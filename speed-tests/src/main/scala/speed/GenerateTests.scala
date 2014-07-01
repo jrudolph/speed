@@ -70,6 +70,12 @@ object GenerateTests {
             coll.speedy.mkString === coll.mkString
         }
       }
+
+      "reverse" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.reverse.mkString === coll.reverse.mkString
+        }
+      }
     }
     """
   }

@@ -51,8 +51,8 @@ class CheckTests extends Specification with ScalaCheck {
     for {
       start ← Gen.choose(Int.MinValue / 4, Int.MaxValue / 4)
       size ← Gen.choose(0, 8)
-      step ← Gen.oneOf(1, 2, 3, -1) //Gen.oneOf(1, -1, 3, -3, 5, -5, 99, -99, 100, -100)
-    } yield new Range.Inclusive(start, (start + size), step) {
+      step ← Gen.oneOf(1, 2, 3, -1, -3) //Gen.oneOf(1, -1, 3, -3, 5, -5, 99, -99, 100, -100)
+    } yield new Range.Inclusive(start, (start + size * step + 1), step) {
       override def toString(): String = s"Range(start = $start, end = $end, step = $step, toString = ${super.toString()})"
     }
   }

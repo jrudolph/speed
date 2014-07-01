@@ -23,8 +23,9 @@ trait Optimizer { self: SpeedImpl ⇒
       InitAddingGenerator(
         MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", q"false"), Closure("idx", q"$arrayVar(idx)", q"")),
         Seq(init))
-    case i: InnerGenerator ⇒ i.transformOuter(optimizeGen)
-    case _                 ⇒ gen
+    case ReverseGenerator(outer) ⇒ optimizeGen(reverseRoot(optimizeGen(outer)))
+    case i: InnerGenerator       ⇒ i.transformOuter(optimizeGen)
+    case _                       ⇒ gen
   }
 
   def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
@@ -42,5 +43,25 @@ trait Optimizer { self: SpeedImpl ⇒
     val cand = OrdT.asSeenFrom(ord.tpe, Ord)
 
     Reduce(cand, closure2(q"$ord.$op(_, _)"))
+  }
+
+  def reverseRoot(outer: Generator): Generator = outer match {
+    case i: InnerGenerator                       ⇒ i.transformOuter(reverseRoot)
+
+    // for simple Ranges it's simple...
+    case RangeGenerator(start, end, q"1", incl)  ⇒ RangeGenerator(q"if ($incl) $end else $end - 1", start, q"-1", q"true")
+    case RangeGenerator(start, end, q"-1", incl) ⇒ RangeGenerator(q"if ($incl) $end else $end + 1", start, q"1", q"true")
+
+    // however when step != +/- 1 we'd need much of the range logic, so we stay from it right now and
+    // fall back on the range runtime implementation
+    // TODO: one easier possibility to fix it would be to make the RangeGenerator / RangeGeneration itself
+    // able to deal with reversion
+    case RangeGenerator(start, end, by, incl) ⇒
+      range(q"""
+        (if ($incl) $start to $end by $by
+        else $start until $end by $by).reverse
+      """)
+
+    case ListGenerator(l, tpe) ⇒ ListGenerator(q"$l.reverse", tpe)
   }
 }
