@@ -237,6 +237,9 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "provide to[Vector]" in {
         (5 to 1000).speedy.to[Vector] === (5 to 1000).to[Vector]
       }
+      "exit early in forall" in {
+        (0 to Int.MaxValue).speedy.forall(_ < 0) === false
+      }
 
       "work with range variables" in {
         val r = (5 to 1000)
