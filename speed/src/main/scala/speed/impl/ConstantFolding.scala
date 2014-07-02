@@ -209,10 +209,13 @@ trait ConstantFolding { self: WithContext ⇒
           transform(selector) match {
             case lit @ Literal(selectorValue) ⇒
               trace(s"Found literal binding for match selector: $selectorValue ($selector), trying to run match")
-              val allConstant = cases.forall(_.pat match {
-                case Literal(c)          ⇒ true
-                case Ident(nme.WILDCARD) ⇒ true
-                case _                   ⇒ false
+              val allConstant = cases.forall(cs ⇒ cs.pat match {
+                case Literal(_) if (cs.guard == EmptyTree)          ⇒ true
+                case Ident(nme.WILDCARD) if (cs.guard == EmptyTree) ⇒ true
+                case _ if (cs.guard != EmptyTree) ⇒
+                  c.warning(cs.guard.pos, s"Constant folding doesn't support guards right now ($m)")
+                  false
+                case _ ⇒ false
               })
               val lastPattern = c.universe.showRaw(cases.last.pat)
               trace(s"Only constant pattern branches: $allConstant: $lastPattern")
