@@ -33,11 +33,6 @@ package speed {
     def count(f: A ⇒ Boolean): Int = macro MacroEntry.entryP1[Int]
     def size: Int = macro MacroEntry.entryP0[Int]
     def mkString: String = macro MacroEntry.entryP0[String]
-
-    // other interesting foldLeft based operators to implement:
-    // exists, forall, count
-    // others:
-    // find
   }
 
   trait OptimizedColl[A] extends OptimizedInnerOps[A] with TerminalOps[A]
