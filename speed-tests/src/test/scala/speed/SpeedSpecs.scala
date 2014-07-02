@@ -33,9 +33,12 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
           val (a, b) = rangeForeach(Int.MaxValue to Int.MinValue by -Int.MaxValue)
           a === b
         }
-
         "with positive step near MaxValue" in {
           val (a, b) = rangeForeach((Int.MaxValue - 2) to Int.MaxValue by 5)
+          a === b
+        }
+        "with step == 1 near MaxValue" in {
+          val (a, b) = rangeForeach((Int.MaxValue - 2) to Int.MaxValue)
           a === b
         }
         "with positive step near not yet near enough MaxValue" in {
@@ -44,6 +47,10 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
         }
         "with negative step near MinValue" in {
           val (a, b) = rangeForeach((Int.MinValue + 2) to Int.MinValue by -5)
+          a === b
+        }
+        "with step == -1 near MinValue" in {
+          val (a, b) = rangeForeach((Int.MinValue + 2) to Int.MinValue by -1)
           a === b
         }
         "with negative step not yet near enough MinValue" in {
@@ -84,8 +91,16 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
           val (a, b) = rangeForeach((max - 2) to Int.MaxValue by 5)
           a === b
         }
+        "with step == 1 near MaxValue" in {
+          val (a, b) = rangeForeach((max - 2) to Int.MaxValue)
+          a === b
+        }
         "with negative step near MinValue" in {
           val (a, b) = rangeForeach((min + 2) to Int.MinValue by -5)
+          a === b
+        }
+        "with step == -1 near MinValue" in {
+          val (a, b) = rangeForeach((min + 2) to Int.MinValue by -1)
           a === b
         }
       }
@@ -128,8 +143,16 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
           val (a, b) = rangeForeach((Int.MaxValue - 2) to Int.MaxValue by five)
           a === b
         }
+        "with step == 1 near MaxValue" in {
+          val (a, b) = rangeForeach((Int.MaxValue - 2) to Int.MaxValue by one)
+          a === b
+        }
         "with negative step near MinValue" in {
           val (a, b) = rangeForeach((Int.MinValue + 2) to Int.MinValue by minus5)
+          a === b
+        }
+        "with step == -1 near MinValue" in {
+          val (a, b) = rangeForeach((Int.MinValue + 2) to Int.MinValue by minus1)
           a === b
         }
       }

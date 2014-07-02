@@ -20,7 +20,6 @@ object DebugMacros {
       var count = 0
       val x = 12
       rSpeedy.splice.foreach { element ⇒
-        val gap = x
         require(count < 1000, "Too many iterations needed")
         count += 1
         buffer += element

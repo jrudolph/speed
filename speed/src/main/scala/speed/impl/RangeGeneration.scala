@@ -21,8 +21,8 @@ trait RangeGeneration { self: SpeedImpl ⇒
         q"""
           $step match {
             case 0 => throw new IllegalArgumentException("step cannot be 0.")
-            case 1 => 1
-            case -1 => -1
+            case 1 => if ($isInclusive && ($end.toLong + $step > Int.MaxValue)) 0 else 1
+            case -1 => if ($isInclusive && ($end.toLong + $step < Int.MinValue)) 0 else -1
             case _ =>
               if ($step > 0)
                 if ($end.toLong + $step > Int.MaxValue) 0 // overflow looming
@@ -40,10 +40,12 @@ trait RangeGeneration { self: SpeedImpl ⇒
       case 1 ⇒ // count up
         q"""
           var $varName = $start
-          val $endVar = if ($isInclusive) $end + 1 else $end
+          val $endVar = $end
           val $stepVar = $step
 
-          while ($varName < $endVar && !$cancelVar) {
+          while (((!$isInclusive && ($varName < $endVar)) ||
+                  ($isInclusive && ($varName <= $endVar)))
+                && !$cancelVar) {
             $application
             $varName += $stepVar
           }
@@ -51,10 +53,12 @@ trait RangeGeneration { self: SpeedImpl ⇒
       case -1 ⇒ // count down
         q"""
           var $varName = $start
-          val $endVar = if ($isInclusive) $end - 1 else $end
+          val $endVar = $end
           val $stepVar = $step
 
-          while ($varName > $endVar && !$cancelVar) {
+          while (((!$isInclusive && ($varName > $endVar)) ||
+                  ($isInclusive && ($varName >= $endVar)))
+                && !$cancelVar) {
             $application
             $varName += $stepVar
           }
