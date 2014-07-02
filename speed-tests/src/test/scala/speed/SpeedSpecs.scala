@@ -211,6 +211,9 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "provide size" in {
         (5 to 1000).speedy.size === (1000 - 5 + 1)
       }
+      "provide to[Vector]" in {
+        (5 to 1000).speedy.to[Vector] === (5 to 1000).to[Vector]
+      }
 
       "work with range variables" in {
         val r = (5 to 1000)
@@ -243,6 +246,9 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       "mapped size" in {
         array.speedy.map(_ + 5).size === 100
       }
+      "provide to[Vector]" in {
+        array.speedy.to[Vector] === array.to[Vector]
+      }
     }
     "optimize list operations" in {
       val list = List.tabulate[Int](100)(identity)
@@ -259,6 +265,9 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
       }
       "mapped size" in {
         list.speedy.map(_ + 5).size === 100
+      }
+      "provide to[Vector]" in {
+        list.speedy.to[Vector] === list.to[Vector]
       }
     }
   }

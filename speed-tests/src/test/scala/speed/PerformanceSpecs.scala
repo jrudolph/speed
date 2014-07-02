@@ -5,6 +5,7 @@ import scala.annotation.tailrec
 import org.specs2.mutable.Specification
 import ichi.bench.Thyme
 import speed.impl.Debug.show
+import scala.collection.mutable
 
 object ThymeExtras {
   implicit class ComparisonExtra(comp: Thyme.Comparison) {
@@ -235,6 +236,24 @@ class PerformanceSpecs extends Specification {
             .size
         }
       }
+      "array map - filter - to" in {
+        val array = Array.tabulate[Int](100)(identity)
+        beSimilarlyFast("array map - filter - to") {
+          array.speedy.map(x ⇒ x * x).filter(_ % 3 == 0).to[List]
+        } {
+          val arBuilder = mutable.ListBuffer[Int]()
+          var i = 0
+          while (i < array.length) {
+            val x = array(i)
+            val y = x * x
+            if (y % 3 == 0) arBuilder += y
+            i += 1
+          }
+          arBuilder.result()
+        } {
+          array.view.map(x ⇒ x * x).filter(_ % 3 == 0).to[List]
+        }
+      }
     }
     "improve speed of List methods" in {
       "list foreach counting" in {
@@ -328,7 +347,7 @@ class PerformanceSpecs extends Specification {
   }
 
   import ThymeExtras._
-  val th = ichi.bench.Thyme.warmed(verbose = print)
+  lazy val th = ichi.bench.Thyme.warmed(verbose = print)
   def beSimilarlyFast[T](name: String)(speedy: ⇒ T)(whileLoopy: ⇒ T)(rangy: ⇒ T) = {
     {
       val speedyRes = speedy

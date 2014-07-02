@@ -70,6 +70,21 @@ object GenerateTests {
             coll.speedy.mkString === coll.mkString
         }
       }
+      "to[Vector]" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.to[Vector] === coll.to[Vector]
+        }
+      }
+      "to[List]" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.to[List] === coll.to[List]
+        }
+      }
+      "to[Array]" in {
+        prop { (coll: $typTree) ⇒
+            coll.speedy.to[Array] === coll.to[Array]
+        }
+      }
 
       "reverse" in {
         prop { (coll: $typTree) ⇒
