@@ -95,14 +95,13 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
     case Reduce(tpe, f) â‡’
       val accVar = c.fresh(newTermName("acc$"))
       val emptyVar = c.fresh(newTermName("empty$"))
-      val Closure2(v1, v2, application, funcInit) = f
       def b(b: Boolean) = Literal(Constant(b))
       val a1Type = tpe
       val neutralA1 = neutralElement(tpe)
       val inits = Seq(
         q"var $accVar: $a1Type = $neutralA1",
         q"var $emptyVar = ${b(true)}",
-        funcInit)
+        f.init)
       val body =
         q"""
           if ($emptyVar) {
@@ -110,9 +109,9 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
             $accVar = $valName
           } else
             $accVar = {
-              val $v1 = $accVar
-              val $v2 = $valName
-              $application
+              val ${f.valName1} = $accVar
+              val ${f.valName2} = $valName
+              ${f.application}
             }
         """
 

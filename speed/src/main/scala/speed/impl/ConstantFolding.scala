@@ -6,7 +6,7 @@ import scala.util.control.NonFatal
 trait ConstantFolding { self: WithContext ⇒
   import c.universe._
 
-  def finish(tree: Tree): Tree = c.resetAllAttrs(foldConstants(tree))
+  def finish(tree: Tree): Tree = c.resetLocalAttrs(foldConstants(c.resetLocalAttrs(tree)))
 
   def foldConstants(tree: Tree): Tree = {
     trace(s"Input to partially: $tree")

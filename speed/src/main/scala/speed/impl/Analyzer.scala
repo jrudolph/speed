@@ -20,9 +20,12 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.withFilter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.reverse"                  ⇒ ReverseGenerator(analyzeGen(inner))
     case q"$inner.flatMap[..${ _ }]($f)" ⇒
-      val Closure(valName, q"$innerGeneratorTree: @speed.dontfold", _) = closure1(f)
+      val cl = closure1(f)
+      val innerGenTree = cl.application match {
+        case q"$innerGeneratorTree: @speed.dontfold" ⇒ innerGeneratorTree
+      }
 
-      FlatMappingGenerator(analyzeGen(inner), valName, analyzeGen(innerGeneratorTree))
+      FlatMappingGenerator(analyzeGen(inner), cl.valName, analyzeGen(innerGenTree))
 
     case q"${ _ }.RangesAreSpeedy($r).speedy" ⇒ range(r)
     case q"${ _ }.IndexedSeqsAreSpeedy[..${ _ }]($s).speedy" ⇒ IndexedGenerator(q"$s: @speed.dontfold")
@@ -45,24 +48,40 @@ trait Analyzer { self: SpeedImpl ⇒
   }
   def closure1(fTree: Tree): Closure = fTree match {
     // try to find literal anonymous functions
-    case q"( $i => $body )"             ⇒ Closure(i.name, q"{ $body }: @speed.dontfold()", q"")
+    case q"( $i => $body )"             ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"")
     //case q"( ($i: ${ _ }) => $body )"   ⇒ AnonFunc(i.asInstanceOf[ValDef].name, q"{ $body }", q"")
     // this matches partial evaluation (like `println _`)
-    case Block(Nil, q"( $i => $body )") ⇒ Closure(i.name, q"{ $body }: @speed.dontfold()", q"")
+    case Block(Nil, q"( $i => $body )") ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"")
     case _ ⇒
       c.warning(fTree.pos, s"Couldn't extract anonymous function implementation here. '$fTree'")
       val fun = c.fresh(newTermName("funInit"))
       val iVar = c.fresh(newTermName("i"))
       Closure(iVar, q"$fun($iVar)", q"val $fun = $fTree")
   }
+
+  /**
+   *  Makes sure that references to the parameters of a lambda gets detached from the parameters.
+   *  Otherwise, the references won't be correctly re-resolved (to whatever the variable name was now bound to)
+   *  when the body is typechecked. Leaving this out will lead to ugly compiler crashes in the backend.
+   */
+  def cleanBody(valDef: ValDef, body: Tree): Tree = new ClosureCleaner(Set(valDef.symbol)).transform(body)
+  def cleanBody(valDef1: ValDef, valDef2: ValDef, body: Tree): Tree = new ClosureCleaner(Set(valDef1.symbol, valDef2.symbol)).transform(body)
+  class ClosureCleaner(candidates: Set[Symbol]) extends Transformer {
+    override def transform(t: Tree): Tree = t match {
+      // make sure to make a clean copy of the ident if the ident refers to a former parameter of the lambda
+      case i: Ident if candidates(i.symbol) ⇒ Ident(i.name)
+      case _                                ⇒ super.transform(t)
+    }
+  }
+
   def closure2(fTree: Tree): Closure2 =
     fTree match {
       // try to find literal anonymous functions
-      case q"( ($i1, $i2) => $body )"             ⇒ Closure2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
+      case q"( ($i1, $i2) => $body )"             ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"")
       // this matches partial evaluation (like `println _`)
-      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ Closure2(i1.name, i2.name, q"{ $body }: @speed.dontfold()", q"")
+      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"")
       case _ ⇒
         val fun = c.fresh(newTermName("funInit"))
-        Closure2(newTermName("i1"), newTermName("i2"), q"$fun(i1, i2)", q"val $fun = $fTree")
+        Closure2("i1", "i2", q"$fun(i1, i2)", q"val $fun = $fTree")
     }
 }
