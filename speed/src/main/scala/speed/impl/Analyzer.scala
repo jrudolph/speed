@@ -64,8 +64,8 @@ trait Analyzer { self: SpeedImpl ⇒
    *  Otherwise, the references won't be correctly re-resolved (to whatever the variable name was now bound to)
    *  when the body is typechecked. Leaving this out will lead to ugly compiler crashes in the backend.
    */
-  def cleanBody(valDef: ValDef, body: Tree): Tree = new ClosureCleaner(Set(valDef.symbol)).transform(body)
-  def cleanBody(valDef1: ValDef, valDef2: ValDef, body: Tree): Tree = new ClosureCleaner(Set(valDef1.symbol, valDef2.symbol)).transform(body)
+  def cleanBody(valDef: ValDef, body: Tree): Tree = c.resetLocalAttrs(body) //new ClosureCleaner(Set(valDef.symbol)).transform(body)
+  def cleanBody(valDef1: ValDef, valDef2: ValDef, body: Tree): Tree = c.resetLocalAttrs(body) // new ClosureCleaner(Set(valDef1.symbol, valDef2.symbol)).transform(body)
   class ClosureCleaner(candidates: Set[Symbol]) extends Transformer {
     override def transform(t: Tree): Tree = t match {
       // make sure to make a clean copy of the ident if the ident refers to a former parameter of the lambda
