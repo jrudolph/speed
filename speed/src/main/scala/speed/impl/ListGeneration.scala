@@ -3,7 +3,7 @@ package speed.impl
 trait ListGeneration { self: SpeedImpl ⇒
   import c.universe._
 
-  def generateList(l: Tree, listTpe: Type, expectedValName: TermName, application: Tree): Tree = {
+  def generateList(l: Tree, listTpe: Type, expectedValName: TermName, application: Tree, cancelVar: TermName): Tree = {
     val curName = c.fresh(newTermName("cur$"))
     val curConsName = c.fresh(newTermName("curCons$"))
     val tpe = TypeTree(listTpe)
@@ -15,7 +15,7 @@ trait ListGeneration { self: SpeedImpl ⇒
 
     q"""
       var $curName = $l
-      while ($curName.isInstanceOf[_root_.scala.collection.immutable.::[_]]) {
+      while ($curName.isInstanceOf[_root_.scala.collection.immutable.::[_]] && !$cancelVar) {
         val $curConsName = $curName.asInstanceOf[_root_.scala.collection.immutable.::[$innerTpe]]
         var $expectedValName = $curConsName.head
         $application

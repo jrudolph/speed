@@ -11,14 +11,16 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
   case class TerminalOperationSetup(inits: Seq[Tree], inner: Tree, result: Tree)
 
   def generate(chain: OperationChain): Tree = {
-    val varName = newTermName(c.fresh("yyyy$"))
+    val cancelVar = c.fresh(newTermName("cancel$"))
+    val varName = newTermName(c.fresh("value$"))
 
-    val term = generateTerminal(chain.terminal, varName)
+    val term = generateTerminal(chain.terminal, varName, cancelVar)
     //println(s"Term: $term")
-    val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner)
+    val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner, cancelVar)
     //println(s"Gen: $gen")
 
     q"""
+      var $cancelVar = false
       ..${genInits ++ term.inits}
 
       $gen
@@ -27,9 +29,9 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
     """
   }
 
-  def generateGen(gen: Generator, expectedValName: TermName, application: Tree): GeneratorSetup = gen match {
-    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application)
-    case ListGenerator(l, tpe)                ⇒ generateList(l, tpe, expectedValName, application)
+  def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName): GeneratorSetup = gen match {
+    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application, cancelVar)
+    case ListGenerator(l, tpe)                ⇒ generateList(l, tpe, expectedValName, application, cancelVar)
     case MappingGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
       val body =
@@ -41,11 +43,11 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
             $application
           """
 
-      generateGen(outer, tempName, body)
+      generateGen(outer, tempName, body, cancelVar)
 
     case FlatMappingGenerator(outer, innerValName, innerGenerator) ⇒
-      val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application)
-      generateGen(outer, innerValName, innerLoop).prependInits(inits)
+      val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application, cancelVar /* FIXME: is this correct? */ )
+      generateGen(outer, innerValName, innerLoop, cancelVar).prependInits(inits)
 
     case FilteringGenerator(outer, f) ⇒
       val tempName = c.fresh(newTermName("m$"))
@@ -60,13 +62,13 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
             }
           """
 
-      generateGen(outer, tempName, body)
+      generateGen(outer, tempName, body, cancelVar)
 
-    case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application).prependInits(inits)
+    case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application, cancelVar).prependInits(inits)
 
     //case _ => q"()"
   }
-  def generateTerminal(terminal: TerminalOperation, valName: TermName): TerminalOperationSetup = terminal match {
+  def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: TermName): TerminalOperationSetup = terminal match {
     case Foreach(f) ⇒
       val body: Tree = q"""
       {
