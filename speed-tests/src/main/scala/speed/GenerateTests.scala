@@ -57,38 +57,42 @@ object GenerateTests {
       }
       "size" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.size === coll.size
+          coll.speedy.size === coll.size
         }
       }
       "count" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.count(_ > numeric.zero) === coll.count(_ > numeric.zero)
+          coll.speedy.count(_ > numeric.zero) === coll.count(_ > numeric.zero)
         }
       }
       "mkString" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.mkString === coll.mkString
+          coll.speedy.mkString === coll.mkString
         }
       }
       "to[Vector]" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.to[Vector] === coll.to[Vector]
+          coll.speedy.to[Vector] === coll.to[Vector]
         }
       }
       "to[List]" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.to[List] === coll.to[List]
+          coll.speedy.to[List] === coll.to[List]
         }
       }
       "to[Array]" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.to[Array] === coll.to[Array]
+          coll.speedy.to[Array] === coll.to[Array]
         }
       }
-
+      "forall" in {
+        prop { (coll: $typTree) ⇒
+          coll.speedy.forall(_ > numeric.zero) === coll.forall(_ > numeric.zero)
+        }
+      }
       "reverse" in {
         prop { (coll: $typTree) ⇒
-            coll.speedy.reverse.mkString === coll.reverse.mkString
+          coll.speedy.reverse.mkString === coll.reverse.mkString
         }
       }
     }

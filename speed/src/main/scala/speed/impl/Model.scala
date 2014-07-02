@@ -44,6 +44,7 @@ trait Model { self: SpeedImpl ⇒
   case class Count(closure: Closure) extends TerminalOperation
   case object MkString extends TerminalOperation
   case class To(canBuildFrom: Tree) extends TerminalOperation
+  case class Forall(closure: Closure) extends TerminalOperation
 
   /** A special kind of terminal operation that allows to append generator stages */
   case class GenerationChangingTerminal(add: Generator ⇒ InnerGenerator, term: TerminalOperation) extends TerminalOperation

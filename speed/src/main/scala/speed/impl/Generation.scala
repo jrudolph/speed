@@ -134,10 +134,24 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
       TerminalOperationSetup(Seq(init), body, result)
 
     case To(cbf) ⇒
-      val builderVar = c.fresh(newTermName("$builder"))
+      val builderVar = c.fresh(newTermName("builder$"))
       val init = q"val $builderVar = $cbf()"
       val body = q"$builderVar += $valName"
       val result = q"$builderVar.result()"
+
+      TerminalOperationSetup(Seq(init), body, result)
+
+    case Forall(f) ⇒
+      val resultVar = c.fresh(newTermName("result$"))
+      val init = q"var $resultVar = true"
+      val body = q"""
+        $resultVar = {
+          val ${f.valName} = $valName
+          ${f.application}
+        }
+        $cancelVar = !$resultVar
+      """
+      val result = q"$resultVar"
 
       TerminalOperationSetup(Seq(init), body, result)
   }

@@ -35,6 +35,7 @@ package speed {
     def size: Int = macro MacroEntry.entryP0[Int]
     def mkString: String = macro MacroEntry.entryP0[String]
     def to[Coll[_]](implicit i: CanBuildFrom[Nothing, A, Coll[A]]): Coll[A] = macro MacroEntry.entryImplicitP0[CanBuildFrom[Nothing, A, Coll[A]], Coll[A]]
+    def forall(f: A ⇒ Boolean): Boolean = macro MacroEntry.entryP1[Boolean]
   }
 
   trait OptimizedColl[A] extends OptimizedInnerOps[A] with TerminalOps[A]
