@@ -3,7 +3,7 @@ import Keys._
 
 object SpeedBuild extends Build {
   def commonSettings = Seq(
-    scalaVersion := "2.10.4",
+    crossScalaVersions := Seq("2.10.4", "2.11.1"),
     scalacOptions ++= Seq(
       "-unchecked", "-language:_"
     ),
