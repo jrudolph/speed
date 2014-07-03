@@ -66,7 +66,18 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
 
     case InitAddingGenerator(outer, inits) â‡’ generateGen(outer, expectedValName, application, cancelVar).prependInits(inits)
 
-    //case _ => q"()"
+    case TakeGenerator(outer, number) â‡’
+      val counterVar = c.fresh(newTermName("counter$"))
+      val init = q"var $counterVar = 0"
+      val body = q"""
+        if ($counterVar < $number) $application
+        $counterVar += 1
+      """
+
+      // TODO: think about an early cancelling version
+      // $cancelVar = $cancelVar || ($counterVar >= $number)
+
+      generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
   }
   def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: TermName): TerminalOperationSetup = terminal match {
     case Foreach(f) â‡’
@@ -149,7 +160,7 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
           val ${f.valName} = $valName
           ${f.application}
         }
-        $cancelVar = !$resultVar
+        $cancelVar = $cancelVar || !$resultVar
       """
       val result = q"$resultVar"
 

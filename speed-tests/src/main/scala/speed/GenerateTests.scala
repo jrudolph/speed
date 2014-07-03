@@ -95,6 +95,25 @@ object GenerateTests {
           coll.speedy.reverse.mkString === coll.reverse.mkString
         }
       }
+      "take" in {
+        "simple take" in prop { (coll: $typTree) ⇒
+          coll.speedy.take(2).sum === coll.take(2).sum
+        }
+        "optimize take through map" in prop { (coll: $typTree) ⇒
+          coll.speedy.map(x => x * x).take(2).sum === coll.map(x => x * x).take(2).sum
+        }
+        "don't optimize take through impure map" in prop { (coll: $typTree) ⇒
+          var counter = 0
+          var counter2 = 0
+          coll.speedy.map({ x ⇒ counter += 1; x + numeric.one }: @impure).take(2).sum ===
+            coll.map { x ⇒ counter2 += 1; x + numeric.one }.take(2).sum
+          counter === counter2
+        }
+        "don't optimize take through filter" in prop { (coll: $typTree) ⇒
+          coll.speedy.filter(_ > numeric.zero).map(x => x * x).take(2).sum ===
+            coll.filter(_ > numeric.zero).map(x => x * x).take(2).sum
+        }
+      }
     }
     """
   }

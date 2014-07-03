@@ -20,12 +20,14 @@ trait Optimizer { self: SpeedImpl ⇒
       val arrayVar = c.fresh(newTermName("array$"))
       val init = q"val $arrayVar = $array"
 
-      InitAddingGenerator(
-        MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", q"false"), Closure("idx", q"$arrayVar(idx)", q"")),
-        Seq(init))
-    case ReverseGenerator(outer) ⇒ optimizeGen(reverseRoot(optimizeGen(outer)))
-    case i: InnerGenerator       ⇒ i.transformOuter(optimizeGen)
-    case _                       ⇒ gen
+      optimizeGen(
+        InitAddingGenerator(
+          MappingGenerator(RangeGenerator(q"0", q"$arrayVar.length", q"1", q"false"), Closure("idx", q"$arrayVar(idx)", q"")),
+          Seq(init)))
+    case ReverseGenerator(outer)      ⇒ optimizeGen(reverseRoot(optimizeGen(outer)))
+    case TakeGenerator(outer, number) ⇒ optimizeTake(number)(outer)
+    case i: InnerGenerator            ⇒ i.transformOuter(optimizeGen)
+    case _                            ⇒ gen
   }
 
   def optimizeTerminal(terminal: TerminalOperation): TerminalOperation = terminal match {
@@ -63,5 +65,16 @@ trait Optimizer { self: SpeedImpl ⇒
       """)
 
     case ListGenerator(l, tpe) ⇒ ListGenerator(q"$l.reverse", tpe)
+  }
+
+  def optimizeTake(number: Tree)(outer: Generator): Generator = optimizeGen(outer) match {
+    // we optimize only the common cases (also used for array access)
+    case RangeGenerator(start, end, q"1", q"false")  ⇒ RangeGenerator(start, q"math.min($start + $number, $end)", q"1", q"false")
+    case RangeGenerator(start, end, q"-1", q"false") ⇒ RangeGenerator(start, q"math.max($start - $number, $end)", q"-1", q"false")
+
+    case i: InitAddingGenerator                      ⇒ i.transformOuter(optimizeTake(number))
+    case m: MappingGenerator if m.f.isPure           ⇒ m.transformOuter(optimizeTake(number))
+
+    case opt @ _                                     ⇒ TakeGenerator(opt, number)
   }
 }

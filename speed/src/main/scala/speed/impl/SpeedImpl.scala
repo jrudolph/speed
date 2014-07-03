@@ -11,6 +11,7 @@ class SpeedContext[C <: Context](val c: C) extends SpeedImpl
 trait SpeedImpl extends WithContext with Model with Analyzer with Generation with Optimizer with ConstantFolding with ContextHelpers {
   import c.universe._
 
+  def analyze(t: Tree): OperationChain
   def optimize(chain: OperationChain): OperationChain
   def generate(chain: OperationChain): Tree
 

@@ -3,8 +3,8 @@ package speed.impl
 trait Model { self: SpeedImpl ⇒
   import c.universe._
 
-  case class Closure(valName: TermName, application: Tree, init: Tree)
-  case class Closure2(valName1: TermName, valName2: TermName, application: Tree, init: Tree)
+  case class Closure(valName: TermName, application: Tree, init: Tree, isPure: Boolean = true)
+  case class Closure2(valName1: TermName, valName2: TermName, application: Tree, init: Tree, isPure: Boolean = true)
 
   sealed trait Generator {
     def withInits(inits: Tree*): InitAddingGenerator = InitAddingGenerator(this, inits)
@@ -30,6 +30,9 @@ trait Model { self: SpeedImpl ⇒
   case class ListGenerator(list: Tree, listTpe: Type) extends Generator
   case class InitAddingGenerator(outer: Generator, inits: Seq[Tree]) extends InnerGenerator {
     def transformOuter(f: Generator ⇒ Generator): InitAddingGenerator = copy(outer = f(outer))
+  }
+  case class TakeGenerator(outer: Generator, number: Tree) extends InnerGenerator {
+    def transformOuter(f: Generator ⇒ Generator): TakeGenerator = copy(outer = f(outer))
   }
 
   sealed trait TerminalOperation

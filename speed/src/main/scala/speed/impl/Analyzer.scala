@@ -21,6 +21,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.filter[..${ _ }]($f)"     ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.withFilter[..${ _ }]($f)" ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.reverse"                  ⇒ ReverseGenerator(analyzeGen(inner))
+    case q"$inner.take($els)"               ⇒ TakeGenerator(analyzeGen(inner), els)
     case q"$inner.flatMap[..${ _ }]($f)" ⇒
       val cl = closure1(f)
       val innerGenTree = cl.application match {
@@ -48,17 +49,26 @@ trait Analyzer { self: SpeedImpl ⇒
       RangeGenerator(q"$rangeVar.start", q"$rangeVar.end", q"$rangeVar.step", q"$rangeVar.isInclusive")
         .withInits(init)
   }
-  def closure1(fTree: Tree): Closure = fTree match {
+
+  lazy val impureAnn = c.mirror.staticClass("speed.impure")
+  def isPure(tpe: Type): Boolean = tpe match {
+    case ann: AnnotatedType ⇒ !ann.annotations.exists(_.tpe.typeSymbol == impureAnn)
+    case _                  ⇒ true // bold assumption
+  }
+
+  def closure1(fTree: Tree, pure: Boolean = true): Closure = fTree match {
+    // look for impure annotation
+    case q"$t: $tpt"                    ⇒ closure1(t, pure && isPure(fTree.tpe))
     // try to find literal anonymous functions
-    case q"( $i => $body )"             ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"")
+    case q"( $i => $body )"             ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"", pure)
     //case q"( ($i: ${ _ }) => $body )"   ⇒ AnonFunc(i.asInstanceOf[ValDef].name, q"{ $body }", q"")
     // this matches partial evaluation (like `println _`)
-    case Block(Nil, q"( $i => $body )") ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"")
+    case Block(Nil, q"( $i => $body )") ⇒ Closure(i.name, q"{ ${cleanBody(i, body)} }: @speed.dontfold()", q"", pure)
     case _ ⇒
-      c.warning(fTree.pos, s"Couldn't extract anonymous function implementation here. '$fTree'")
+      c.warning(fTree.pos, s"Couldn't extract anonymous function implementation here. '$fTree' '${fTree.productPrefix}'")
       val fun = c.fresh(newTermName("funInit"))
       val iVar = c.fresh(newTermName("i"))
-      Closure(iVar, q"$fun($iVar)", q"val $fun = $fTree")
+      Closure(iVar, q"$fun($iVar)", q"val $fun = $fTree", pure)
   }
 
   /**
@@ -76,14 +86,16 @@ trait Analyzer { self: SpeedImpl ⇒
     }
   }
 
-  def closure2(fTree: Tree): Closure2 =
+  def closure2(fTree: Tree, pure: Boolean = true): Closure2 =
     fTree match {
+      // look for impure annotation
+      case q"$t: $tpt"                            ⇒ closure2(t, pure && isPure(fTree.tpe))
       // try to find literal anonymous functions
-      case q"( ($i1, $i2) => $body )"             ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"")
+      case q"( ($i1, $i2) => $body )"             ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"", pure)
       // this matches partial evaluation (like `println _`)
-      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"")
+      case Block(Nil, q"( ($i1, $i2) => $body )") ⇒ Closure2(i1.name, i2.name, q"{ ${cleanBody(i1, i2, body)} }: @speed.dontfold()", q"", pure)
       case _ ⇒
         val fun = c.fresh(newTermName("funInit"))
-        Closure2("i1", "i2", q"$fun(i1, i2)", q"val $fun = $fTree")
+        Closure2("i1", "i2", q"$fun(i1, i2)", q"val $fun = $fTree", pure)
     }
 }

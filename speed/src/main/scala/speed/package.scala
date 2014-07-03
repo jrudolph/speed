@@ -27,6 +27,7 @@ package speed {
     def filter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
     def withFilter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
     def reverse: OptimizedColl[A] = compileTimeOnly
+    def take(f: Int): OptimizedColl[A] = compileTimeOnly
   }
   trait TerminalOps[A] {
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro MacroEntry.entryFoldLeft[A, B]
@@ -43,4 +44,6 @@ package speed {
   }
 
   trait OptimizedColl[A] extends OptimizedInnerOps[A] with TerminalOps[A]
+
+  final class impure extends scala.annotation.StaticAnnotation
 }
