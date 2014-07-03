@@ -16,6 +16,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.to[..${ _ }]($cbf)"            ⇒ OperationChain(analyzeGen(inner), To(cbf))
     case q"$inner.forall($f)"                    ⇒ OperationChain(analyzeGen(inner), Forall(closure1(f)))
   }
+  val arrayOps = Set("boolean", "byte", "char", "double", "float", "int", "long", "ref", "short", "unit").map(_ + "ArrayOps")
   def analyzeGen(t: Tree): Generator = t match {
     case q"$inner.map[..${ _ }]($f)"        ⇒ MappingGenerator(analyzeGen(inner), closure1(f))
     case q"$inner.filter[..${ _ }]($f)"     ⇒ FilteringGenerator(analyzeGen(inner), closure1(f))
@@ -34,6 +35,8 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"${ _ }.IndexedSeqsAreSpeedy[..${ _ }]($s).speedy" ⇒ IndexedGenerator(q"$s: @speed.dontfold")
     case q"${ _ }.ArraysAreSpeedy[..${ _ }]($a).speedy" ⇒ IndexedGenerator(q"$a: @speed.dontfold")
     case q"${ _ }.ListsAreSpeedy[..${ _ }]($l).speedy" ⇒ ListGenerator(q"$l: @speed.dontfold", l.tpe.widen)
+
+    case q"${ _ }.auto.$name[..${ _ }]($a)" if arrayOps(name.decoded) ⇒ IndexedGenerator(q"$a: @speed.dontfold")
 
     case _ ⇒ error(s"Unknown Prefix: $t")
   }

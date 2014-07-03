@@ -46,4 +46,30 @@ package speed {
   trait OptimizedColl[A] extends OptimizedInnerOps[A] with TerminalOps[A]
 
   final class impure extends scala.annotation.StaticAnnotation
+
+  /** Provides implicit conversions for common types where possible */
+  object auto extends LowLevelAuto {
+    implicit class booleanArrayOps(a: Array[Boolean]) extends OptimizedColl[Boolean]
+    implicit class byteArrayOps(a: Array[Byte]) extends OptimizedColl[Byte]
+    implicit class charArrayOps(a: Array[Char]) extends OptimizedColl[Char]
+    implicit class doubleArrayOps(a: Array[Double]) extends OptimizedColl[Double]
+    implicit class floatArrayOps(a: Array[Float]) extends OptimizedColl[Float]
+    implicit class intArrayOps(a: Array[Int]) extends OptimizedColl[Int]
+    implicit class longArrayOps(a: Array[Long]) extends OptimizedColl[Long]
+    implicit class refArrayOps[T <: AnyRef](a: Array[T]) extends OptimizedColl[T]
+    implicit class shortArrayOps(a: Array[Short]) extends OptimizedColl[Short]
+    implicit class unitArrayOps(a: Array[Unit]) extends OptimizedColl[Unit]
+  }
+  trait LowLevelAuto {
+    implicit def wrapBooleanArray(a: Array[Boolean]) = Predef.wrapBooleanArray(a)
+    implicit def wrapByteArray(a: Array[Byte]) = Predef.wrapByteArray(a)
+    implicit def wrapCharArray(a: Array[Char]) = Predef.wrapCharArray(a)
+    implicit def wrapDoubleArray(a: Array[Double]) = Predef.wrapDoubleArray(a)
+    implicit def wrapFloatArray(a: Array[Float]) = Predef.wrapFloatArray(a)
+    implicit def wrapIntArray(a: Array[Int]) = Predef.wrapIntArray(a)
+    implicit def wrapLongArray(a: Array[Long]) = Predef.wrapLongArray(a)
+    implicit def wrapRefArray[T <: AnyRef](a: Array[T]) = Predef.wrapRefArray(a)
+    implicit def wrapShortArray(a: Array[Short]) = Predef.wrapShortArray(a)
+    implicit def wrapUnitArray(a: Array[Unit]) = Predef.wrapUnitArray(a)
+  }
 }
