@@ -362,7 +362,7 @@ class PerformanceSpecs extends Specification {
     val speedySpeedup = 1d / result.factor * 100d
     val rangeSpeedup = 1d / result2.factor * 100d
 
-    val nameString = s"[$name](#${name.replaceAll(" ", "-")}})"
+    val nameString = s"[$name](#${name.replaceAll(" ", "-")})"
 
     println(f"|$nameString%s | 100 %% | $speedySpeedup%5.2f %% | $rangeSpeedup%5.2f %%")
 
