@@ -49,17 +49,37 @@ package speed {
 
   /** Provides implicit conversions for common types where possible */
   object auto extends LowLevelAuto {
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class booleanArrayOps(a: Array[Boolean]) extends OptimizedColl[Boolean]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class byteArrayOps(a: Array[Byte]) extends OptimizedColl[Byte]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class charArrayOps(a: Array[Char]) extends OptimizedColl[Char]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class doubleArrayOps(a: Array[Double]) extends OptimizedColl[Double]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class floatArrayOps(a: Array[Float]) extends OptimizedColl[Float]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class intArrayOps(a: Array[Int]) extends OptimizedColl[Int]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class longArrayOps(a: Array[Long]) extends OptimizedColl[Long]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class refArrayOps[T <: AnyRef](a: Array[T]) extends OptimizedColl[T]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class shortArrayOps(a: Array[Short]) extends OptimizedColl[Short]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class unitArrayOps(a: Array[Unit]) extends OptimizedColl[Unit]
+
+    trait OptimizedRange extends OptimizedColl[Int] {
+      def by(step: Int): OptimizedColl[Int] = compileTimeOnly
+    }
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class intWrapper(from: Int) {
+      def to(to: Int): OptimizedRange = compileTimeOnly
+      def until(until: Int): OptimizedRange = compileTimeOnly
+    }
   }
+  /** Provided to prevent ambiguities with Predef's LowLevelImplicits */
   trait LowLevelAuto {
     implicit def wrapBooleanArray(a: Array[Boolean]) = Predef.wrapBooleanArray(a)
     implicit def wrapByteArray(a: Array[Byte]) = Predef.wrapByteArray(a)

@@ -37,6 +37,8 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"${ _ }.ListsAreSpeedy[..${ _ }]($l).speedy" ⇒ ListGenerator(q"$l: @speed.dontfold", l.tpe.widen)
 
     case q"${ _ }.auto.$name[..${ _ }]($a)" if arrayOps(name.decoded) ⇒ IndexedGenerator(q"$a: @speed.dontfold")
+    case q"${ _ }.auto.intWrapper($i).$m(..${ _ }).by(..${ _ })" ⇒ range(t)
+    case q"${ _ }.auto.intWrapper($i).$m(..${ _ })" ⇒ range(t)
 
     case _ ⇒ error(s"Unknown Prefix: $t")
   }
