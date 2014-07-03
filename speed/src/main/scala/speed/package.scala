@@ -18,16 +18,16 @@ package object speed {
 package speed {
   trait Speedy[A] {
     @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    def speedy: OptimizedColl[A] = ???
+    def speedy: OptimizedCollection[A] = compileTimeOnly
   }
 
-  trait OptimizedInnerOps[A] {
-    def flatMap[B](func: A ⇒ OptimizedColl[B]): OptimizedColl[B] = compileTimeOnly
-    def map[B](func: A ⇒ B): OptimizedColl[B] = compileTimeOnly
-    def filter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
-    def withFilter(p: A ⇒ Boolean): OptimizedColl[A] = compileTimeOnly
-    def reverse: OptimizedColl[A] = compileTimeOnly
-    def take(f: Int): OptimizedColl[A] = compileTimeOnly
+  trait NonTerminalOps[A] {
+    def flatMap[B](f: A ⇒ OptimizedCollection[B]): OptimizedCollection[B] = compileTimeOnly
+    def map[B](f: A ⇒ B): OptimizedCollection[B] = compileTimeOnly
+    def filter(p: A ⇒ Boolean): OptimizedCollection[A] = compileTimeOnly
+    def withFilter(p: A ⇒ Boolean): OptimizedCollection[A] = compileTimeOnly
+    def reverse: OptimizedCollection[A] = compileTimeOnly
+    def take(f: Int): OptimizedCollection[A] = compileTimeOnly
   }
   trait TerminalOps[A] {
     def foldLeft[B](init: B)(f: (B, A) ⇒ B): B = macro MacroEntry.entryFoldLeft[A, B]
@@ -43,35 +43,37 @@ package speed {
     def forall(f: A ⇒ Boolean): Boolean = macro MacroEntry.entryP1[Boolean]
   }
 
-  trait OptimizedColl[A] extends OptimizedInnerOps[A] with TerminalOps[A]
+  trait OptimizedCollection[A] extends NonTerminalOps[A] with TerminalOps[A]
 
   final class impure extends scala.annotation.StaticAnnotation
 
   /** Provides implicit conversions for common types where possible */
   object auto extends LowLevelAuto {
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class booleanArrayOps(a: Array[Boolean]) extends OptimizedColl[Boolean]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class byteArrayOps(a: Array[Byte]) extends OptimizedColl[Byte]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class charArrayOps(a: Array[Char]) extends OptimizedColl[Char]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class doubleArrayOps(a: Array[Double]) extends OptimizedColl[Double]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class floatArrayOps(a: Array[Float]) extends OptimizedColl[Float]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class intArrayOps(a: Array[Int]) extends OptimizedColl[Int]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class longArrayOps(a: Array[Long]) extends OptimizedColl[Long]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class refArrayOps[T <: AnyRef](a: Array[T]) extends OptimizedColl[T]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class shortArrayOps(a: Array[Short]) extends OptimizedColl[Short]
-    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
-    implicit class unitArrayOps(a: Array[Unit]) extends OptimizedColl[Unit]
+    type impure = speed.impure
 
-    trait OptimizedRange extends OptimizedColl[Int] {
-      def by(step: Int): OptimizedColl[Int] = compileTimeOnly
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class booleanArrayOps(a: Array[Boolean]) extends OptimizedCollection[Boolean]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class byteArrayOps(a: Array[Byte]) extends OptimizedCollection[Byte]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class charArrayOps(a: Array[Char]) extends OptimizedCollection[Char]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class doubleArrayOps(a: Array[Double]) extends OptimizedCollection[Double]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class floatArrayOps(a: Array[Float]) extends OptimizedCollection[Float]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class intArrayOps(a: Array[Int]) extends OptimizedCollection[Int]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class longArrayOps(a: Array[Long]) extends OptimizedCollection[Long]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class refArrayOps[T <: AnyRef](a: Array[T]) extends OptimizedCollection[T]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class shortArrayOps(a: Array[Short]) extends OptimizedCollection[Short]
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
+    implicit class unitArrayOps(a: Array[Unit]) extends OptimizedCollection[Unit]
+
+    trait OptimizedRange extends OptimizedCollection[Int] {
+      def by(step: Int): OptimizedCollection[Int] = compileTimeOnly
     }
     @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     implicit class intWrapper(from: Int) {
