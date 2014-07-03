@@ -2,6 +2,7 @@ import scala.collection.immutable
 import scala.collection.generic.CanBuildFrom
 import scala.language.experimental.macros
 import speed.impl.MacroEntry
+import scala.reflect.internal.annotations.compileTimeOnly
 
 package object speed {
   implicit class RangesAreSpeedy(range: Range) extends Speedy[Int]
@@ -9,11 +10,14 @@ package object speed {
   implicit class ListsAreSpeedy[A](list: List[A]) extends Speedy[A]
   implicit class IndexedSeqsAreSpeedy[A](seq: immutable.IndexedSeq[A]) extends Speedy[A]
 
-  def compileTimeOnly = ???
+  def compileTimeOnly =
+    throw new IllegalStateException(
+      "A `speedy` expression must end with a terminal operation. (Should have been checked at compile-time)")
 }
 
 package speed {
   trait Speedy[A] {
+    @compileTimeOnly("A `speedy` expression must end with a terminal operation.")
     def speedy: OptimizedColl[A] = ???
   }
 
