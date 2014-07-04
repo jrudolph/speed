@@ -2,7 +2,7 @@ organization := "net.virtual-void"
 
 name := "speed"
 
-version := "15"
+version := "16-SNAPSHOT"
 
 homepage := Some(url("http://github.com/jrudolph/speed"))
 
