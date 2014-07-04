@@ -97,7 +97,8 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl â
         $counterVar += 1
       """
 
-      // TODO: think about an early cancelling version
+      // TODO: think about an early cancelling version, this however wouldn't work together with
+      //       impure maps etc
       // $cancelVar = $cancelVar || ($counterVar >= $number)
 
       generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
