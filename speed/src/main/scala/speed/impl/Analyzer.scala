@@ -15,6 +15,7 @@ trait Analyzer { self: SpeedImpl ⇒
     case q"$inner.mkString"                      ⇒ OperationChain(analyzeGen(inner), MkString)
     case q"$inner.to[..${ _ }]($cbf)"            ⇒ OperationChain(analyzeGen(inner), To(cbf))
     case q"$inner.forall($f)"                    ⇒ OperationChain(analyzeGen(inner), Forall(closure1(f)))
+    case q"$inner.exists($f)"                    ⇒ OperationChain(analyzeGen(inner), Exists(closure1(f)))
   }
   val arrayOps = Set("boolean", "byte", "char", "double", "float", "int", "long", "ref", "short", "unit").map(_ + "ArrayOps")
   def analyzeGen(t: Tree): Generator = t match {

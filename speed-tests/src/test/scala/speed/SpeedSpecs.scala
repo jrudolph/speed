@@ -281,6 +281,12 @@ class SpeedSpecs extends Specification with PendingUntilFixed {
         val empty = new Array[Int](0)
         empty.speedy.forall(_ % 3 == 0) === empty.forall(_ % 3 == 0)
       }
+      "provide exists" in {
+        array.speedy.filter(_ % 2 == 0).exists(_ % 3 == 0) === array.filter(_ % 2 == 0).exists(_ % 3 == 0)
+
+        val empty = new Array[Int](0)
+        empty.speedy.exists(_ % 3 == 0) === empty.exists(_ % 3 == 0)
+      }
     }
     "optimize list operations" in {
       val list = List.tabulate[Int](100)(identity)

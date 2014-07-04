@@ -41,6 +41,7 @@ package speed {
     def mkString: String = macro MacroEntry.entryP0[String]
     def to[Coll[_]](implicit i: CanBuildFrom[Nothing, A, Coll[A]]): Coll[A] = macro MacroEntry.entryImplicitP0[CanBuildFrom[Nothing, A, Coll[A]], Coll[A]]
     def forall(f: A ⇒ Boolean): Boolean = macro MacroEntry.entryP1[Boolean]
+    def exists(f: A ⇒ Boolean): Boolean = macro MacroEntry.entryP1[Boolean]
   }
 
   trait OptimizedCollection[A] extends NonTerminalOps[A] with TerminalOps[A]

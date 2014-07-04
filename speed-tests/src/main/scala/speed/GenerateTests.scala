@@ -90,6 +90,11 @@ object GenerateTests {
           coll.speedy.forall(_ > numeric.zero) === coll.forall(_ > numeric.zero)
         }
       }
+      "exists" in {
+        prop { (coll: $typTree) ⇒
+          coll.speedy.exists(_ > numeric.zero) === coll.exists(_ > numeric.zero)
+        }
+      }
       "reverse" in {
         prop { (coll: $typTree) ⇒
           coll.speedy.reverse.mkString === coll.reverse.mkString

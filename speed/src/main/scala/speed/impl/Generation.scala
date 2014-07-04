@@ -152,18 +152,26 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
 
       TerminalOperationSetup(Seq(init), body, result)
 
-    case Forall(f) ⇒
-      val resultVar = c.fresh(newTermName("result$"))
-      val init = q"var $resultVar = true"
-      val body = q"""
+    case Forall(f) ⇒ forAllExistsGen(f, valName, cancelVar, true, result ⇒ q"!$result")
+    case Exists(f) ⇒ forAllExistsGen(f, valName, cancelVar, false, result ⇒ q"$result")
+  }
+
+  def forAllExistsGen(f: Closure,
+                      valName: TermName,
+                      cancelVar: TermName,
+                      defaultValue: Boolean,
+                      shouldCancel: (TermName) ⇒ Tree): TerminalOperationSetup = {
+    val resultVar = c.fresh(newTermName("result$"))
+    val init = q"var $resultVar = $defaultValue"
+    val body = q"""
         $resultVar = {
           val ${f.valName} = $valName
           ${f.application}
         }
-        $cancelVar = $cancelVar || !$resultVar
+        $cancelVar = $cancelVar || ${shouldCancel(resultVar)}
       """
-      val result = q"$resultVar"
+    val result = q"$resultVar"
 
-      TerminalOperationSetup(Seq(init), body, result)
+    TerminalOperationSetup(Seq(init), body, result)
   }
 }
