@@ -18,9 +18,25 @@ object SpeedBuild extends Build {
     libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
   ) ++ ScalariformSupport.formatSettings
 
+  def alwaysCleanTests = Seq(
+    // make sure to recompile tests every time
+    cleanFiles in Test <<= Seq(classDirectory in Test).join,
+    cleanKeepFiles in Test := Nil,
+    clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean,
+    compile in Test <<= (compile in Test).dependsOn(clean in Test)
+  )
+
   lazy val root =
     Project("root", file("."))
-      .aggregate(speed, speedTests)
+      .aggregate(speed, speedTests, macroTools)
+
+  lazy val macroTools =
+    Project("macro-tools", file("macro-tools"))
+      .settings(commonSettings: _*)
+      .settings(alwaysCleanTests: _*)
+      .settings(
+        //scalacOptions in Test ++= Seq("-Yreify-debug")
+      )
 
   lazy val speed =
     Project("speed", file("speed"))
@@ -31,11 +47,7 @@ object SpeedBuild extends Build {
       .dependsOn(speed)
       .settings(commonSettings: _*)
       .settings(
-        unmanagedBase in Test <<= baseDirectory / "test-lib",
-        // make sure to recompile tests every time
-        cleanFiles in Test <<= Seq(classDirectory in Test).join,
-        cleanKeepFiles in Test := Nil,
-        clean in Test <<= (cleanFiles in Test, cleanKeepFiles in Test) map Defaults.doClean,
-        compile in Test <<= (compile in Test).dependsOn(clean in Test)
+        unmanagedBase in Test <<= baseDirectory / "test-lib"
       )
+      .settings(alwaysCleanTests: _*)
 }
