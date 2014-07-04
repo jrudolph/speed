@@ -162,6 +162,20 @@ In the words of the master of enrichment:
 It is known that **speed** still optimizes side-effects in user code too aggressively away in some cases.
 If you encounter such an issue please report it on the issue tracker.
 
+## License
+
+The MIT License
+
+## Hacking
+
+ * Adding support for another collection type: as an example see
+   [this commit](https://github.com/jrudolph/speed/commit/b0b0ca9966bd7100d9cdb7b46899dbbcc4b7b196) for how `List` was supported.
+ * Adding an optimization:
+   see [Optimizer.scala](https://github.com/jrudolph/speed/blob/master/speed/src/main/scala/speed/impl/Optimizer.scala)
+   for existing optimizations
+ * Adding a (non-)terminal operation:
+   see [Generation.scala](https://github.com/jrudolph/speed/blob/master/speed/src/main/scala/speed/impl/Generation.scala)
+
 ## Related work
 
  * [spire's][spire] cfor
