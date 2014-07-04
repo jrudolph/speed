@@ -23,6 +23,7 @@
 
 package speed.impl
 
+import net.virtualvoid.macros.tools.WithContext
 import scala.reflect.macros.Context
 
 class TransformingSpeedContext[C <: Context](val c: C) extends SpeedImpl {
@@ -31,7 +32,7 @@ class TransformingSpeedContext[C <: Context](val c: C) extends SpeedImpl {
 
 class SpeedContext[C <: Context](val c: C) extends SpeedImpl
 
-trait SpeedImpl extends WithContext with Model with Analyzer with Generation with Optimizer with ConstantFolding with ContextHelpers {
+trait SpeedImpl extends WithContext with WithTracing with Model with Analyzer with Generation with Optimizer with ConstantFolding with ContextHelpers {
   import c.universe._
 
   def analyze(t: Tree): OperationChain

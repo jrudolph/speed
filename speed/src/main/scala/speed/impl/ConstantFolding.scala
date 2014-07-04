@@ -24,9 +24,10 @@
 package speed
 package impl
 
+import net.virtualvoid.macros.tools.WithContext
 import scala.util.control.NonFatal
 
-trait ConstantFolding { self: WithContext ⇒
+trait ConstantFolding { self: WithContext with WithTracing ⇒
   import c.universe._
 
   def finish(tree: Tree): Tree = c.resetLocalAttrs(foldConstants(c.resetLocalAttrs(tree)))

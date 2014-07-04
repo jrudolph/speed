@@ -29,15 +29,15 @@ import scala.reflect.macros.Context
 import scala.reflect.internal.annotations.compileTimeOnly
 
 trait Reifier extends WithContext {
-  import ctx.universe._
-  trait Expr[T] {
+  import c.universe._
+  trait Expr[+T] {
     @compileTimeOnly("splice can only be used inside of reify")
     def splice: T = ???
     def tree: Tree
   }
 
-  implicit def autoConv[T](exp: ctx.Expr[T]): Expr[T] = new Expr[T] { def tree = exp.tree }
-  implicit def autoConvReverse[T](e: Expr[T]): ctx.Expr[T] = ctx.Expr[T](e.tree)
+  implicit def autoConv[T](exp: c.Expr[T]): Expr[T] = new Expr[T] { def tree = exp.tree }
+  implicit def autoConvReverse[T](e: Expr[T]): c.Expr[T] = c.Expr[T](e.tree)
   def Expr[T](t: Tree): Expr[T] = new Expr[T] { def tree = t }
   def reify[T](t: T): Expr[T] = macro ReifierImpl.reifyImpl[T]
 
@@ -93,15 +93,14 @@ object ReifierImpl {
     val withPlaceholders = CreatePlaceholders.transform(t.tree)
     //println(s"With: '$withPlaceholders'")
 
-    val univ = c.typeCheck(q"${c.prefix}.ctx.universe")
-    //val mirr =c.typeCheck(q"${c.prefix}.ctx.mirror")
+    val univ = c.typeCheck(q"${c.prefix}.c.universe")
 
     //val reified = c.reifyTree(treeBuild.mkRuntimeUniverseRef, EmptyTree, withPlaceholders)
     val reified = c.reifyTree(univ, EmptyTree, withPlaceholders)
     //println(s"Reified: $reified")
 
     val pref = c.prefix
-    def buildExpr[T: c.WeakTypeTag](t: Tree): Tree = q"new $pref.Expr[${c.weakTypeTag[T]}] { val tree = $t.asInstanceOf[$pref.ctx.universe.Tree] }"
+    def buildExpr[T: c.WeakTypeTag](t: Tree): Tree = q"new $pref.Expr[${c.weakTypeTag[T]}] { val tree = $t.asInstanceOf[$pref.c.universe.Tree] }"
 
     val justTheBuilder = reified match {
       case Block(_, Apply(Apply(_, List(_, Block(List(ClassDef(_, _, _, Template(_, _, List(_, DefDef(_, _, _, _, _, Block(_, justTheBuilder)))))), _))), _)) ⇒ justTheBuilder

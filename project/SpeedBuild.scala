@@ -41,6 +41,7 @@ object SpeedBuild extends Build {
   lazy val speed =
     Project("speed", file("speed"))
       .settings(commonSettings: _*)
+      .dependsOn(macroTools)
 
   lazy val speedTests =
     Project("speed-tests", file("speed-tests"))

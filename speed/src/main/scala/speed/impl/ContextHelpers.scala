@@ -23,6 +23,8 @@
 
 package speed.impl
 
+import net.virtualvoid.macros.tools.WithContext
+
 trait ContextHelpers { self: WithContext ⇒
   import c.universe._
 
