@@ -23,7 +23,7 @@ while (i < array.length) {
   acc = acc + array(i)
   i += 1
 }
-counter
+acc
 ```
 
 ## Installation
