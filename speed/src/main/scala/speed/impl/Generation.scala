@@ -23,7 +23,9 @@
 
 package speed.impl
 
-trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl ⇒
+import net.virtualvoid.macros.tools.Reifier
+
+trait Generation extends RangeGeneration with ListGeneration with Reifier { self: SpeedImpl ⇒
   import c.universe._
   case class GeneratorSetup(inits: Seq[Tree], body: Tree) {
     def prependInits(inits: Seq[Tree]): GeneratorSetup = copy(inits = inits ++ this.inits)
@@ -33,7 +35,7 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
   }
   case class TerminalOperationSetup(inits: Seq[Tree], inner: Tree, result: Tree)
 
-  def generate(chain: OperationChain): Tree = {
+  def generateOld(chain: OperationChain): Tree = {
     val cancelVar = c.fresh(newTermName("cancel$"))
     val varName = newTermName(c.fresh("value$"))
 
@@ -50,6 +52,140 @@ trait Generation extends RangeGeneration with ListGeneration { self: SpeedImpl �
 
       ${term.result}
     """
+  }
+  def generate(chain: OperationChain): Tree = {
+    val cancelVar = c.fresh(newTermName("cancel$"))
+    val varName = newTermName(c.fresh("value$"))
+
+    val generator = generateGenNew(cancelVar)(chain.generator)
+    val terminal = generateTerminalNew(chain.terminal, cancelVar, generator)
+
+    //val term = generateTerminal(chain.terminal, varName, cancelVar)
+    //println(s"Term: $term")
+    //val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner, cancelVar)
+    //println(s"Gen: $gen")
+
+    q"""
+      var $cancelVar = false
+
+      $terminal
+    """
+  }
+
+  type ExprGen[T] = (Expr[T] ⇒ Expr[Unit]) ⇒ Expr[Unit]
+
+  def closureApp[T, U](cl: Closure): Expr[T] ⇒ Expr[U] = {
+    v ⇒
+      Expr[U](
+        q"""
+      {
+        val ${cl.valName} = ${v.tree}
+        ${cl.application}
+      }
+      """)
+  }
+  def generateGenNew[T](cancelVar: TermName)(gen: Generator): ExprGen[T] = gen match {
+    //case MappingGenerator(outer, f) ⇒ //(inner: c.Expr[T] ⇒ c.Expr[Unit]) ⇒
+    //val tempName = c.fresh(newTermName("m$"))
+    //genMap(generateGenNew(cancelVar)(outer), closureApp(f))
+    //inner(closureApp(cl))
+
+    /*inner(q"""{
+              val ${f.valName} = $tempName
+              ${f.application}
+            }""")*/
+    case _ ⇒
+      //gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName
+      inner ⇒ {
+        val v = c.fresh(newTermName("v$"))
+        val app = inner(Expr(Ident(v))).tree
+        val GeneratorSetup(inits, body) = generateGen(gen, v, app, cancelVar)
+
+        Expr(q"""
+        ..$inits
+
+        $body
+        """)
+      }
+  }
+  def genMap[T, U](outerGen: ExprGen[T], f: Expr[T] ⇒ Expr[U]): ExprGen[U] =
+    (inner: Expr[U] ⇒ Expr[Unit]) ⇒
+      outerGen { tVal ⇒
+        val uVal = f(tVal)
+        inner(uVal)
+      }
+
+  def genMkString(generator: (Expr[Any] ⇒ Expr[Unit]) ⇒ Expr[Unit]): Expr[String] =
+    reify {
+      val builder = new java.lang.StringBuilder
+
+      generator { value ⇒
+        reifyInner(builder.append(value.splice))
+      }.splice
+
+      builder.toString
+    }
+
+  def generateTerminalNew[T, U](terminal: TerminalOperation /* [T, U] */ , cancelVar: TermName, generator: ExprGen[T]): c.Expr[U] = terminal match {
+    case _ ⇒
+      // terminal: TerminalOperation, valName: TermName, cancelVar: TermName
+
+      val x = c.fresh(newTermName("x$"))
+      val TerminalOperationSetup(inits, termBody, result) = generateTerminal(terminal, x, cancelVar)
+      val body = generator { v ⇒
+        Expr(q"""
+          {
+            val $x = ${v.tree}
+            $termBody
+          }
+        """)
+      }
+
+      Expr(q"""
+      ..$inits
+
+      ${body.tree}
+
+      $result
+      """)
+
+    //case _ ⇒ c.universe.reify(null)
+    //case MkString ⇒ genMkString(generator).asInstanceOf[c.Expr[U]]
+    /*val sbVar = c.fresh(newTermName("sb$"))
+
+
+
+      q"""
+        val $sbVar = new java.lang.StringBuilder
+
+        ${
+        generator(value ⇒
+          q"""
+           $sbVar.append($value.toString)
+        """)
+      }
+
+        $sbVar.toString
+      """*/
+
+    /*case Forall(f) ⇒
+      val resultVar = c.fresh(newTermName("result$"))
+
+      q"""
+        var $resultVar = true
+
+        ${
+        generator(value ⇒ q"""
+          $resultVar = {
+            val ${f.valName} = $value
+            ${f.application}
+          }
+          $cancelVar = $cancelVar || !$resultVar
+        """)
+      }
+
+        $resultVar
+      """*/
   }
 
   def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName): GeneratorSetup = gen match {
