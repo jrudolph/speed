@@ -28,7 +28,7 @@ import net.virtualvoid.macros.tools
 import scala.reflect.macros.Context
 import scala.reflect.internal.annotations.compileTimeOnly
 
-trait Reifier[C <: Context] extends WithContext[C] {
+trait Reifier extends WithContext {
   import ctx.universe._
   trait Expr[T] {
     @compileTimeOnly("splice can only be used inside of reify")
@@ -46,7 +46,7 @@ trait Reifier[C <: Context] extends WithContext[C] {
 }
 
 object ReifierImpl {
-  def reifyImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier[_] })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
+  def reifyImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
     import c.universe._
 
     case class PlaceholderDef(orig: Tree, args: Seq[Tree], tpes: Seq[Type])
@@ -60,13 +60,8 @@ object ReifierImpl {
 
       override def traverse(tree: Tree): Unit = tree match {
         case q"${ _ }.reifyInner[..${ _ }]($exp)" ⇒
-          args = args :+ exp
+          args = args :+ CreatePlaceholders.transform(exp)
           tpes = tpes :+ exp.tpe
-
-          tree
-
-        //println(s"Found inner reify: '$exp'")
-        //exp
         case _ ⇒ super.traverse(tree)
       }
 
@@ -120,12 +115,12 @@ object ReifierImpl {
 
     //println(s"Just the builder: ${justTheBuilder.productPrefix} $v $justTheBuilder")
 
-    object InsertInnerReifies extends Transformer {
+    class InsertInnerReifies extends Transformer {
       var args = Seq.empty[Tree]
       var tpes = Seq.empty[Type]
       override def transform(tree: Tree): Tree = tree match {
         case q"${ _ }.reifyInner[$tpe](${ _ })" ⇒
-          val res = args(0)
+          val res = ReplacePlaceholder.transform(args(0))
           val tpe = tpes(0)
           args = args.tail
           tpes = tpes.tail
@@ -146,7 +141,7 @@ object ReifierImpl {
         case q"${ _ }.Apply(${ _ }.Ident(${ _ }.newTermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
 
           val before = placeholders(newTermName(name))
-          val placed = InsertInnerReifies.run(before, args) //RemoveInnerReify.transform(before)
+          val placed = (new InsertInnerReifies).run(before, args)
 
           //println(s"Found placeholder!!! $name\nBefore: $before\nAfter: $placed")
           q"${placed}.tree.asInstanceOf[$$u.Tree]"
@@ -155,7 +150,7 @@ object ReifierImpl {
     }
 
     val replaced = c.resetLocalAttrs(ReplacePlaceholder.transform(reified))
-    println(s"Replaced: $replaced")
+    //println(s"Replaced: $replaced")
 
     c.Expr[c.prefix.value.Expr[T]](replaced)
   }

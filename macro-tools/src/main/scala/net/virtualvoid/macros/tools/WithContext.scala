@@ -25,6 +25,6 @@ package net.virtualvoid.macros.tools
 
 import scala.reflect.macros.Context
 
-trait WithContext[C <: Context] {
-  val ctx: C
+trait WithContext {
+  val ctx: Context
 }

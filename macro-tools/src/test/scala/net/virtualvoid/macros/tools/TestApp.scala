@@ -31,18 +31,21 @@ object TestMacro {
   def show[T](t: T): T = macro showTree[T]
   def showTree[T](c: Context)(t: c.Expr[T]): c.Expr[T] = { println(s"Show '${c.universe.show(t)}'"); t }
 
-  def testMacro(c: Context)(i: c.Expr[Int]): c.Expr[String] = new Reifier[c.type] {
+  def testMacro(c: Context)(i: c.Expr[Int]): c.Expr[String] = new Reifier {
     val ctx: c.type = c
 
-    def inner(exp: Expr[Int]): Expr[String] = reify((exp.splice * 2).toString)
+    /*def inner(exp: Expr[Int]): Expr[String] = reify((exp.splice * 2).toString)
 
     val expr =
       reify[String] {
         val x = 5 + i.splice
         inner(reifyInner(x)).splice
-      }
+      }*/
 
-    def res: c.Expr[String] = expr
+    def res: c.Expr[String] = reify {
+      val x = 5
+      reifyInner(x + reifyInner(38 * i.splice).splice).splice.toString
+    }
 
     /*
 
