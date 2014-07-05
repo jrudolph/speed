@@ -61,6 +61,7 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
   type ExprGen[T] = (Expr[T] ⇒ Expr[Unit]) ⇒ Expr[Unit]
   type ExprFunc[T, U] = Expr[T] ⇒ Expr[U]
+  type ExprFunc2[T1, T2, U] = (Expr[T1], Expr[T2]) ⇒ Expr[U]
 
   def closureApp[T, U](cl: Closure): ExprFunc[T, U] = {
     v ⇒
@@ -68,6 +69,18 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
         q"""
       {
         val ${cl.valName} = ${v.tree}
+        ${cl.application}
+      }
+      """)
+  }
+
+  def closure2App[T1, T2, U](cl: Closure2): ExprFunc2[T1, T2, U] = {
+    (v1, v2) ⇒
+      Expr[U](
+        q"""
+      {
+        val ${cl.valName1} = ${v1.tree}
+        val ${cl.valName2} = ${v2.tree}
         ${cl.application}
       }
       """)
@@ -107,8 +120,10 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
       }
 
   def generateTerminalNew[T, U](terminal: TerminalOperation /* [T, U] */ , cancelVar: Cancel, generator: ExprGen[T]): Expr[U] = ((terminal match {
-    case MkString   ⇒ genMkString(generator)
-    case Foreach(f) ⇒ generator(closureApp(f))
+    case MkString          ⇒ genMkString(generator)
+    case FoldLeft(init, f) ⇒ genFoldLeft(generator, Expr(init), closure2App(f))
+    case Foreach(f)        ⇒ generator(closureApp(f))
+    case Reduce(tpe, f)    ⇒ genReduce(generator, closure2App(f), tpe)
     case _ ⇒
       val x = c.fresh(newTermName("x$"))
       val TerminalOperationSetup(inits, termBody, result) = generateTerminal(terminal, x, cancelVar)
@@ -140,6 +155,40 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
       builder.toString
     }
+
+  def genFoldLeft[T, U](generator: ExprGen[T], init: Expr[U], foldF: ExprFunc2[U, T, U]): Expr[U] =
+    reify {
+      var acc = init.splice
+
+      generator { value ⇒
+        reifyInner {
+          acc = foldF(reifyInner(acc), value).splice
+        }
+      }.splice
+
+      acc
+    }
+
+  def genReduce[T](generator: ExprGen[T], f: ExprFunc2[T, T, T], tpe: Type): Expr[T] = {
+    implicit val tTag = c.WeakTypeTag[T](tpe)
+
+    reify {
+      var acc: T = neutralElementExpr[T].splice
+      var empty = true
+
+      generator { value ⇒
+        reifyInner {
+          if (empty) {
+            empty = false
+            acc = value.splice
+          } else acc = f(reifyInner(acc), value).splice
+        }
+      }.splice
+
+      if (empty) throw new UnsupportedOperationException("Can't reduce empty range")
+      else acc
+    }
+  }
 
   def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancel: Cancel): GeneratorSetup = {
     val genny = generateGenNew(cancel)(gen)
@@ -175,52 +224,6 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
       generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
   }
   def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: Cancel): TerminalOperationSetup = terminal match {
-    case FoldLeft(init, f) ⇒
-      val accVar = c.fresh(newTermName("acc$"))
-      val inits = Seq(q"var $accVar = ${init}", f.init)
-
-      val body =
-        q"""
-          $accVar = {
-            val ${f.valName1} = $accVar
-            val ${f.valName2} = $valName
-            ${f.application}
-          }
-        """
-
-      TerminalOperationSetup(inits, body, q"$accVar")
-
-    case Reduce(tpe, f) ⇒
-      val accVar = c.fresh(newTermName("acc$"))
-      val emptyVar = c.fresh(newTermName("empty$"))
-      def b(b: Boolean) = Literal(Constant(b))
-      val a1Type = tpe
-      val neutralA1 = neutralElement(tpe)
-      val inits = Seq(
-        q"var $accVar: $a1Type = $neutralA1",
-        q"var $emptyVar = ${b(true)}",
-        f.init)
-      val body =
-        q"""
-          if ($emptyVar) {
-            $emptyVar = ${b(false)}
-            $accVar = $valName
-          } else
-            $accVar = {
-              val ${f.valName1} = $accVar
-              val ${f.valName2} = $valName
-              ${f.application}
-            }
-        """
-
-      val result =
-        q"""
-              if ($emptyVar) throw new UnsupportedOperationException("Can't reduce empty range")
-              else $accVar
-            """
-
-      TerminalOperationSetup(inits, body, result)
-
     case To(cbf) ⇒
       val builderVar = c.fresh(newTermName("builder$"))
       val init = q"val $builderVar = $cbf()"

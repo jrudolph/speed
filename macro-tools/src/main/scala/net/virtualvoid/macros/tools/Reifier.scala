@@ -38,6 +38,7 @@ trait Reifier extends WithContext {
 
   implicit def autoConv[T](exp: c.Expr[T]): Expr[T] = new Expr[T] { def tree = exp.tree }
   implicit def autoConvReverse[T](e: Expr[T]): c.Expr[T] = c.Expr[T](e.tree)
+  implicit def convToUnit[T](exp: Expr[T]): Expr[Unit] = new Expr[Unit] { def tree = exp.tree }
   def Expr[T](t: Tree): Expr[T] = new Expr[T] { def tree = t }
   def reify[T](t: T): Expr[T] = macro ReifierImpl.reifyImpl[T]
 
