@@ -36,7 +36,13 @@ object GenerateTests {
     val typTree = TypeTree(coll)
     val name = c.literal(coll.toString)
 
-    q"""
+    // FIXME: directly returning this value makes typing fail with
+    // [error] /home/johannes/git/self/speed/speed-tests/src/test/scala/speed/CheckTests.scala:85: recursive value x$13 needs type
+    // [error]   GenerateTests.generateTests[Array[Int]]()
+    // INVESTIGATE!
+
+    val res =
+      q"""
     $name should {
       val numeric = num[$typTree]
       import Numeric.Implicits._
@@ -144,5 +150,6 @@ object GenerateTests {
       }
     }
     """
+    res
   }
 }
