@@ -84,6 +84,8 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
   def generateGenNew[T](cancelVar: Cancel)(gen: Generator): ExprGen[T] = gen match {
     case MappingGenerator(outer, f)                ⇒ genMap(generateGenNew(cancelVar)(outer), closureApp(f))
     case FilteringGenerator(outer, f)              ⇒ genFilter(generateGenNew(cancelVar)(outer), closureApp(f))
+    case TakeGenerator(outer, number)              ⇒ genTake(generateGenNew(cancelVar)(outer), Expr(number))
+
     case ListGenerator(l, tpe)                     ⇒ generateList(Expr(l), tpe, cancelVar)
     case RangeGenerator(start, end, by, inclusive) ⇒ generateRangeNew(Expr(start), Expr(end), Expr(by), Expr(inclusive), cancelVar).asInstanceOf[ExprGen[T]]
 
@@ -115,6 +117,21 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
         }
       }
 
+  def genTake[T](outerGen: ExprGen[T], number: Expr[Int]): ExprGen[T] =
+    inner ⇒
+      reify {
+        var counter = 0
+        val numberVal = number.splice
+
+        outerGen { value ⇒
+          reifyInner {
+            val v = value.splice
+            if (counter < numberVal) inner(reifyInner(v)).splice
+            counter += 1
+          }
+        }.splice
+      }
+
   def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancel: Cancel): GeneratorSetup = {
     val genny = generateGenNew(cancel)(gen)
 
@@ -131,19 +148,5 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
       val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application, cancelVar /* FIXME: is this correct? */ )
       generateGen(outer, innerValName, innerLoop, cancelVar).prependInits(inits)
     case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application, cancelVar).prependInits(inits)
-
-    case TakeGenerator(outer, number) ⇒
-      val counterVar = c.fresh(newTermName("counter$"))
-      val init = q"var $counterVar = 0"
-      val body = q"""
-        if ($counterVar < $number) $application
-        $counterVar += 1
-      """
-
-      // TODO: think about an early cancelling version, this however wouldn't work together with
-      //       impure maps etc
-      // $cancelVar = $cancelVar || ($counterVar >= $number)
-
-      generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
   }
 }
