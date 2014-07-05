@@ -28,11 +28,8 @@ trait ListGeneration { self: SpeedImpl ⇒
 
   def generateList[T](l: Expr[List[T]], listTpe: Type, cancelVar: Cancel): ExprGen[T] =
     { inner ⇒
-      val tpe = TypeTree(listTpe)
-      val List = typeOf[List[_]].typeSymbol.asClass
-      val ListA = List.typeParams(0).asType.toType
-      val innerTpe = ListA.asSeenFrom(listTpe, List)
-      implicit val t = c.WeakTypeTag[T](innerTpe)
+      implicit val t = listElementTypeTag[T](listTpe)
+
       reify {
         var current = l.splice
         while (current.isInstanceOf[_root_.scala.collection.immutable.::[_]] && !cancelVar.shouldCancel.splice) {
@@ -42,4 +39,12 @@ trait ListGeneration { self: SpeedImpl ⇒
         }
       }
     }
+
+  def listElementTypeTag[T](listTpe: Type): WeakTypeTag[T] = {
+    val tpe = TypeTree(listTpe)
+    val List = typeOf[List[_]].typeSymbol.asClass
+    val ListA = List.typeParams(0).asType.toType
+    val innerTpe = ListA.asSeenFrom(listTpe, List)
+    c.WeakTypeTag[T](innerTpe)
+  }
 }
