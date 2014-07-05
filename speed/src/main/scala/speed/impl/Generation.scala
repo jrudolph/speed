@@ -35,30 +35,17 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
   }
   case class TerminalOperationSetup(inits: Seq[Tree], inner: Tree, result: Tree)
 
-  def generateOld(chain: OperationChain): Tree = {
-    val cancelVar = c.fresh(newTermName("cancel$"))
-    val varName = newTermName(c.fresh("value$"))
-
-    val term = generateTerminal(chain.terminal, varName, cancelVar)
-    //println(s"Term: $term")
-    val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner, cancelVar)
-    //println(s"Gen: $gen")
-
-    q"""
-      var $cancelVar = false
-      ..${genInits ++ term.inits}
-
-      $gen
-
-      ${term.result}
-    """
+  case class Cancel(cancelVar: TermName) {
+    val shouldCancel: Expr[Boolean] = Expr[Boolean](Ident(cancelVar))
+    def cancel(shouldCancel: Expr[Boolean]): Expr[Unit] = Expr[Unit](q"$cancelVar = ${shouldCancel.tree}")
   }
+
   def generate(chain: OperationChain): Tree = {
-    val cancelVar = c.fresh(newTermName("cancel$"))
+    val cancel = Cancel(c.fresh(newTermName("cancel$")))
     val varName = newTermName(c.fresh("value$"))
 
-    val generator = generateGenNew(cancelVar)(chain.generator)
-    val terminal = generateTerminalNew(chain.terminal, cancelVar, generator)
+    val generator = generateGenNew(cancel)(chain.generator)
+    val terminal = generateTerminalNew(chain.terminal, cancel, generator)
 
     //val term = generateTerminal(chain.terminal, varName, cancelVar)
     //println(s"Term: $term")
@@ -66,15 +53,16 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
     //println(s"Gen: $gen")
 
     q"""
-      var $cancelVar = false
+      var ${cancel.cancelVar} = false
 
-      $terminal
+      ${terminal.tree}
     """
   }
 
   type ExprGen[T] = (Expr[T] ⇒ Expr[Unit]) ⇒ Expr[Unit]
+  type ExprFunc[T, U] = Expr[T] ⇒ Expr[U]
 
-  def closureApp[T, U](cl: Closure): Expr[T] ⇒ Expr[U] = {
+  def closureApp[T, U](cl: Closure): ExprFunc[T, U] = {
     v ⇒
       Expr[U](
         q"""
@@ -84,22 +72,17 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
       }
       """)
   }
-  def generateGenNew[T](cancelVar: TermName)(gen: Generator): ExprGen[T] = gen match {
-    //case MappingGenerator(outer, f) ⇒ //(inner: c.Expr[T] ⇒ c.Expr[Unit]) ⇒
-    //val tempName = c.fresh(newTermName("m$"))
-    //genMap(generateGenNew(cancelVar)(outer), closureApp(f))
-    //inner(closureApp(cl))
+  def generateGenNew[T](cancelVar: Cancel)(gen: Generator): ExprGen[T] = gen match {
+    case MappingGenerator(outer, f)   ⇒ genMap(generateGenNew(cancelVar)(outer), closureApp(f))
+    case FilteringGenerator(outer, f) ⇒ genFilter(generateGenNew(cancelVar)(outer), closureApp(f))
+    case ListGenerator(l, tpe)        ⇒ generateList(Expr(l), tpe, cancelVar)
 
-    /*inner(q"""{
-              val ${f.valName} = $tempName
-              ${f.application}
-            }""")*/
     case _ ⇒
       //gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName
       inner ⇒ {
         val v = c.fresh(newTermName("v$"))
         val app = inner(Expr(Ident(v))).tree
-        val GeneratorSetup(inits, body) = generateGen(gen, v, app, cancelVar)
+        val GeneratorSetup(inits, body) = generateGenOld(gen, v, app, cancelVar)
 
         Expr(q"""
         ..$inits
@@ -115,21 +98,18 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
         inner(uVal)
       }
 
-  def genMkString(generator: (Expr[Any] ⇒ Expr[Unit]) ⇒ Expr[Unit]): Expr[String] =
-    reify {
-      val builder = new java.lang.StringBuilder
+  def genFilter[T, U](outerGen: ExprGen[T], f: Expr[T] ⇒ Expr[Boolean]): ExprGen[T] =
+    (inner: Expr[T] ⇒ Expr[Unit]) ⇒
+      outerGen { tVal ⇒
+        reify {
+          if (f(tVal).splice) inner(tVal).splice
+        }
+      }
 
-      generator { value ⇒
-        reifyInner(builder.append(value.splice))
-      }.splice
-
-      builder.toString
-    }
-
-  def generateTerminalNew[T, U](terminal: TerminalOperation /* [T, U] */ , cancelVar: TermName, generator: ExprGen[T]): c.Expr[U] = terminal match {
+  def generateTerminalNew[T, U](terminal: TerminalOperation /* [T, U] */ , cancelVar: Cancel, generator: ExprGen[T]): Expr[U] = ((terminal match {
+    case MkString   ⇒ genMkString(generator)
+    case Foreach(f) ⇒ generator(closureApp(f))
     case _ ⇒
-      // terminal: TerminalOperation, valName: TermName, cancelVar: TermName
-
       val x = c.fresh(newTermName("x$"))
       val TerminalOperationSetup(inits, termBody, result) = generateTerminal(terminal, x, cancelVar)
       val body = generator { v ⇒
@@ -148,81 +128,36 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
       $result
       """)
+  }): Expr[_]).asInstanceOf[Expr[U]]
 
-    //case _ ⇒ c.universe.reify(null)
-    //case MkString ⇒ genMkString(generator).asInstanceOf[c.Expr[U]]
-    /*val sbVar = c.fresh(newTermName("sb$"))
+  def genMkString(generator: ExprGen[Any]): Expr[String] =
+    reify {
+      val builder = new java.lang.StringBuilder
 
+      generator { value ⇒
+        reifyInner(builder.append(value.splice))
+      }.splice
 
+      builder.toString
+    }
 
-      q"""
-        val $sbVar = new java.lang.StringBuilder
+  def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancel: Cancel): GeneratorSetup = {
+    val genny = generateGenNew(cancel)(gen)
 
-        ${
-        generator(value ⇒
-          q"""
-           $sbVar.append($value.toString)
-        """)
-      }
+    val generate = genny(v ⇒ Expr(q""" {
+      val $expectedValName = ${v.tree}
+      $application
+    }
+    """))
 
-        $sbVar.toString
-      """*/
-
-    /*case Forall(f) ⇒
-      val resultVar = c.fresh(newTermName("result$"))
-
-      q"""
-        var $resultVar = true
-
-        ${
-        generator(value ⇒ q"""
-          $resultVar = {
-            val ${f.valName} = $value
-            ${f.application}
-          }
-          $cancelVar = $cancelVar || !$resultVar
-        """)
-      }
-
-        $resultVar
-      """*/
+    generate.tree
   }
-
-  def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName): GeneratorSetup = gen match {
-    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application, cancelVar)
-    case ListGenerator(l, tpe)                ⇒ generateList(l, tpe, expectedValName, application, cancelVar)
-    case MappingGenerator(outer, f) ⇒
-      val tempName = c.fresh(newTermName("m$"))
-      val body =
-        q"""
-            val $expectedValName = {
-              val ${f.valName} = $tempName
-              ${f.application}
-            }
-            $application
-          """
-
-      generateGen(outer, tempName, body, cancelVar)
+  def generateGenOld(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: Cancel): GeneratorSetup = gen match {
+    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application, cancelVar.cancelVar)
 
     case FlatMappingGenerator(outer, innerValName, innerGenerator) ⇒
       val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application, cancelVar /* FIXME: is this correct? */ )
       generateGen(outer, innerValName, innerLoop, cancelVar).prependInits(inits)
-
-    case FilteringGenerator(outer, f) ⇒
-      val tempName = c.fresh(newTermName("m$"))
-      val body =
-        q"""
-            if ({
-              val ${f.valName} = $tempName
-              ${f.application}
-            }) {
-              val $expectedValName = $tempName
-              $application
-            }
-          """
-
-      generateGen(outer, tempName, body, cancelVar)
-
     case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application, cancelVar).prependInits(inits)
 
     case TakeGenerator(outer, number) ⇒
@@ -239,17 +174,7 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
       generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
   }
-  def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: TermName): TerminalOperationSetup = terminal match {
-    case Foreach(f) ⇒
-      val body: Tree = q"""
-      {
-        val ${f.valName} = $valName
-        ${f.application}
-      }
-      """
-
-      TerminalOperationSetup(Seq(f.init), body, q"()")
-
+  def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: Cancel): TerminalOperationSetup = terminal match {
     case FoldLeft(init, f) ⇒
       val accVar = c.fresh(newTermName("acc$"))
       val inits = Seq(q"var $accVar = ${init}", f.init)
@@ -296,14 +221,6 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
       TerminalOperationSetup(inits, body, result)
 
-    case MkString ⇒
-      val sbVar = c.fresh(newTermName("sb$"))
-      val init = q"val $sbVar = new java.lang.StringBuilder"
-      val body = q"$sbVar.append($valName.toString)"
-      val result = q"$sbVar.toString"
-
-      TerminalOperationSetup(Seq(init), body, result)
-
     case To(cbf) ⇒
       val builderVar = c.fresh(newTermName("builder$"))
       val init = q"val $builderVar = $cbf()"
@@ -312,8 +229,8 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
 
       TerminalOperationSetup(Seq(init), body, result)
 
-    case Forall(f) ⇒ forAllExistsGen(f, valName, cancelVar, true, result ⇒ q"!$result")
-    case Exists(f) ⇒ forAllExistsGen(f, valName, cancelVar, false, result ⇒ q"$result")
+    case Forall(f) ⇒ forAllExistsGen(f, valName, cancelVar.cancelVar, true, result ⇒ q"!$result")
+    case Exists(f) ⇒ forAllExistsGen(f, valName, cancelVar.cancelVar, false, result ⇒ q"$result")
   }
 
   def forAllExistsGen(f: Closure,
