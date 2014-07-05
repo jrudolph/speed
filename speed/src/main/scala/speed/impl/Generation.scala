@@ -24,8 +24,9 @@
 package speed.impl
 
 import net.virtualvoid.macros.tools.Reifier
+import scala.collection.generic.CanBuildFrom
 
-trait Generation extends RangeGeneration with ListGeneration with Reifier { self: SpeedImpl ⇒
+trait Generation extends RangeGeneration with ListGeneration with TerminalGeneration with Reifier { self: SpeedImpl ⇒
   import c.universe._
   case class GeneratorSetup(inits: Seq[Tree], body: Tree) {
     def prependInits(inits: Seq[Tree]): GeneratorSetup = copy(inits = inits ++ this.inits)
@@ -33,7 +34,6 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
   object GeneratorSetup {
     implicit def treeToSetup(t: Tree): GeneratorSetup = GeneratorSetup(Nil, t)
   }
-  case class TerminalOperationSetup(inits: Seq[Tree], inner: Tree, result: Tree)
 
   case class Cancel(cancelVar: TermName) {
     val shouldCancel: Expr[Boolean] = Expr[Boolean](Ident(cancelVar))
@@ -45,12 +45,7 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
     val varName = newTermName(c.fresh("value$"))
 
     val generator = generateGenNew(cancel)(chain.generator)
-    val terminal = generateTerminalNew(chain.terminal, cancel, generator)
-
-    //val term = generateTerminal(chain.terminal, varName, cancelVar)
-    //println(s"Term: $term")
-    //val GeneratorSetup(genInits, gen) = generateGen(chain.generator, varName, term.inner, cancelVar)
-    //println(s"Gen: $gen")
+    val terminal = generateTerminal(chain.terminal, cancel, generator)
 
     q"""
       var ${cancel.cancelVar} = false
@@ -58,6 +53,8 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
       ${terminal.tree}
     """
   }
+
+  def generateTerminal[T, U](terminal: TerminalOperation, cancelVar: Cancel, generator: ExprGen[T]): Expr[U]
 
   type ExprGen[T] = (Expr[T] ⇒ Expr[Unit]) ⇒ Expr[Unit]
   type ExprFunc[T, U] = Expr[T] ⇒ Expr[U]
@@ -91,7 +88,6 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
     case ListGenerator(l, tpe)        ⇒ generateList(Expr(l), tpe, cancelVar)
 
     case _ ⇒
-      //gen: Generator, expectedValName: TermName, application: Tree, cancelVar: TermName
       inner ⇒ {
         val v = c.fresh(newTermName("v$"))
         val app = inner(Expr(Ident(v))).tree
@@ -118,77 +114,6 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
           if (f(tVal).splice) inner(tVal).splice
         }
       }
-
-  def generateTerminalNew[T, U](terminal: TerminalOperation /* [T, U] */ , cancelVar: Cancel, generator: ExprGen[T]): Expr[U] = ((terminal match {
-    case MkString          ⇒ genMkString(generator)
-    case FoldLeft(init, f) ⇒ genFoldLeft(generator, Expr(init), closure2App(f))
-    case Foreach(f)        ⇒ generator(closureApp(f))
-    case Reduce(tpe, f)    ⇒ genReduce(generator, closure2App(f), tpe)
-    case _ ⇒
-      val x = c.fresh(newTermName("x$"))
-      val TerminalOperationSetup(inits, termBody, result) = generateTerminal(terminal, x, cancelVar)
-      val body = generator { v ⇒
-        Expr(q"""
-          {
-            val $x = ${v.tree}
-            $termBody
-          }
-        """)
-      }
-
-      Expr(q"""
-      ..$inits
-
-      ${body.tree}
-
-      $result
-      """)
-  }): Expr[_]).asInstanceOf[Expr[U]]
-
-  def genMkString(generator: ExprGen[Any]): Expr[String] =
-    reify {
-      val builder = new java.lang.StringBuilder
-
-      generator { value ⇒
-        reifyInner(builder.append(value.splice))
-      }.splice
-
-      builder.toString
-    }
-
-  def genFoldLeft[T, U](generator: ExprGen[T], init: Expr[U], foldF: ExprFunc2[U, T, U]): Expr[U] =
-    reify {
-      var acc = init.splice
-
-      generator { value ⇒
-        reifyInner {
-          acc = foldF(reifyInner(acc), value).splice
-        }
-      }.splice
-
-      acc
-    }
-
-  def genReduce[T](generator: ExprGen[T], f: ExprFunc2[T, T, T], tpe: Type): Expr[T] = {
-    implicit val tTag = c.WeakTypeTag[T](tpe)
-
-    reify {
-      var acc: T = neutralElementExpr[T].splice
-      var empty = true
-
-      generator { value ⇒
-        reifyInner {
-          if (empty) {
-            empty = false
-            acc = value.splice
-          } else acc = f(reifyInner(acc), value).splice
-        }
-      }.splice
-
-      if (empty) throw new UnsupportedOperationException("Can't reduce empty range")
-      else acc
-    }
-  }
 
   def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancel: Cancel): GeneratorSetup = {
     val genny = generateGenNew(cancel)(gen)
@@ -222,36 +147,5 @@ trait Generation extends RangeGeneration with ListGeneration with Reifier { self
       // $cancelVar = $cancelVar || ($counterVar >= $number)
 
       generateGen(outer, expectedValName, body, cancelVar).prependInits(Seq(init))
-  }
-  def generateTerminal(terminal: TerminalOperation, valName: TermName, cancelVar: Cancel): TerminalOperationSetup = terminal match {
-    case To(cbf) ⇒
-      val builderVar = c.fresh(newTermName("builder$"))
-      val init = q"val $builderVar = $cbf()"
-      val body = q"$builderVar += $valName"
-      val result = q"$builderVar.result()"
-
-      TerminalOperationSetup(Seq(init), body, result)
-
-    case Forall(f) ⇒ forAllExistsGen(f, valName, cancelVar.cancelVar, true, result ⇒ q"!$result")
-    case Exists(f) ⇒ forAllExistsGen(f, valName, cancelVar.cancelVar, false, result ⇒ q"$result")
-  }
-
-  def forAllExistsGen(f: Closure,
-                      valName: TermName,
-                      cancelVar: TermName,
-                      defaultValue: Boolean,
-                      shouldCancel: (TermName) ⇒ Tree): TerminalOperationSetup = {
-    val resultVar = c.fresh(newTermName("result$"))
-    val init = q"var $resultVar = $defaultValue"
-    val body = q"""
-        $resultVar = {
-          val ${f.valName} = $valName
-          ${f.application}
-        }
-        $cancelVar = $cancelVar || ${shouldCancel(resultVar)}
-      """
-    val result = q"$resultVar"
-
-    TerminalOperationSetup(Seq(init), body, result)
   }
 }
