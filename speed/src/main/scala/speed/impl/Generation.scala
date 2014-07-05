@@ -42,7 +42,6 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
 
   def generate(chain: OperationChain): Tree = {
     val cancel = Cancel(c.fresh(newTermName("cancel$")))
-    val varName = newTermName(c.fresh("value$"))
 
     val generator = generateGenNew(cancel)(chain.generator)
     val terminal = generateTerminal(chain.terminal, cancel, generator)
@@ -83,9 +82,10 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
       """)
   }
   def generateGenNew[T](cancelVar: Cancel)(gen: Generator): ExprGen[T] = gen match {
-    case MappingGenerator(outer, f)   ⇒ genMap(generateGenNew(cancelVar)(outer), closureApp(f))
-    case FilteringGenerator(outer, f) ⇒ genFilter(generateGenNew(cancelVar)(outer), closureApp(f))
-    case ListGenerator(l, tpe)        ⇒ generateList(Expr(l), tpe, cancelVar)
+    case MappingGenerator(outer, f)                ⇒ genMap(generateGenNew(cancelVar)(outer), closureApp(f))
+    case FilteringGenerator(outer, f)              ⇒ genFilter(generateGenNew(cancelVar)(outer), closureApp(f))
+    case ListGenerator(l, tpe)                     ⇒ generateList(Expr(l), tpe, cancelVar)
+    case RangeGenerator(start, end, by, inclusive) ⇒ generateRangeNew(Expr(start), Expr(end), Expr(by), Expr(inclusive), cancelVar).asInstanceOf[ExprGen[T]]
 
     case _ ⇒
       inner ⇒ {
@@ -127,8 +127,6 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
     generate.tree
   }
   def generateGenOld(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: Cancel): GeneratorSetup = gen match {
-    case RangeGenerator(start, end, by, incl) ⇒ generateRange(start, end, by, incl, expectedValName, application, cancelVar.cancelVar)
-
     case FlatMappingGenerator(outer, innerValName, innerGenerator) ⇒
       val GeneratorSetup(inits, innerLoop) = generateGen(innerGenerator, expectedValName, application, cancelVar /* FIXME: is this correct? */ )
       generateGen(outer, innerValName, innerLoop, cancelVar).prependInits(inits)

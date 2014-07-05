@@ -26,12 +26,7 @@ package speed.impl
 trait RangeGeneration { self: SpeedImpl ⇒
   import c.universe._
 
-  def generateRange(start: Tree, end: Tree, step: Tree, isInclusive: Tree, varName: TermName, application: Tree, cancelVar: TermName): Tree = {
-    val startVar = c.fresh(newTermName("start"))
-    val endVar = c.fresh(newTermName("end"))
-    val stepVar = c.fresh(newTermName("step"))
-    val terminalElementVar = c.fresh(newTermName("terminalElement"))
-
+  def generateRangeNew(start: Expr[Int], end: Expr[Int], step: Expr[Int], isInclusive: Expr[Boolean], cancel: Cancel): ExprGen[Int] = {
     // a variable whose value decides which implementation to use
     //  1: count up and compare with `<` / `<=`
     // -1: count down and compare with `>` / `>=`
@@ -41,80 +36,80 @@ trait RangeGeneration { self: SpeedImpl ⇒
     // if we can't figure it out now, we choose the variant which always works
     val decider =
       foldConstants(
-        q"""
-          $step match {
-            case 0 => throw new IllegalArgumentException("step cannot be 0.")
-            case 1 => if ($isInclusive && ($end.toLong + $step > Int.MaxValue)) 0 else 1
-            case -1 => if ($isInclusive && ($end.toLong + $step < Int.MinValue)) 0 else -1
-            case _ =>
-              if ($step > 0)
-                if ($end.toLong + $step > Int.MaxValue) 0 // overflow looming
+        reify {
+          step.splice match {
+            case 0  ⇒ throw new IllegalArgumentException("step cannot be 0.")
+            case 1  ⇒ if (isInclusive.splice && (end.splice.toLong + step.splice > Int.MaxValue)) 0 else 1
+            case -1 ⇒ if (isInclusive.splice && (end.splice.toLong + step.splice < Int.MinValue)) 0 else -1
+            case _ ⇒
+              if (step.splice > 0)
+                if (end.splice.toLong + step.splice > Int.MaxValue) 0 // overflow looming
                 else 1
-              else
-                if ($end.toLong + $step < Int.MinValue) 0 // overflow looming
-                else -1
-          }""") match {
+              else if (end.splice.toLong + step.splice < Int.MinValue) 0 // overflow looming
+              else -1
+          }
+        }.tree) match {
           case l @ Literal(Constant(x))           ⇒ x
           case Block(_, l @ Literal(Constant(x))) ⇒ x
           case x @ _                              ⇒ 0
         }
 
-    val body = decider match {
+    inner ⇒ decider match {
       case 1 ⇒ // count up
-        q"""
-          var $varName = $start
-          val $endVar = $end
-          val $stepVar = $step
+        reify {
+          var cur = start.splice
+          val endVal = end.splice
+          val stepVal = step.splice
 
-          while (((!$isInclusive && ($varName < $endVar)) ||
-                  ($isInclusive && ($varName <= $endVar)))
-                && !$cancelVar) {
-            $application
-            $varName += $stepVar
+          while (((!isInclusive.splice && (cur < endVal)) ||
+            (isInclusive.splice && (cur <= endVal)))
+            && !cancel.shouldCancel.splice) {
+
+            inner(reifyInner(cur)).splice
+            cur += stepVal
           }
-        """
+        }
       case -1 ⇒ // count down
-        q"""
-          var $varName = $start
-          val $endVar = $end
-          val $stepVar = $step
+        reify {
+          var cur = start.splice
+          val endVal = end.splice
+          val stepVal = step.splice
 
-          while (((!$isInclusive && ($varName > $endVar)) ||
-                  ($isInclusive && ($varName >= $endVar)))
-                && !$cancelVar) {
-            $application
-            $varName += $stepVar
+          while (((!isInclusive.splice && (cur > endVal)) ||
+            (isInclusive.splice && (cur >= endVal)))
+            && !cancel.shouldCancel.splice) {
+
+            inner(reifyInner(cur)).splice
+            cur += stepVal
           }
-        """
+        }
       case 0 ⇒
-        q"""
-          val $startVar = $start
-          val $endVar = $end
-          val $stepVar = $step
+        reify {
+          val startVal = start.splice
+          val endVal = end.splice
+          val stepVal = step.splice
 
-          val $terminalElementVar = {
-            val gap = $endVar.toLong - $startVar.toLong
-            val isExact = gap % $stepVar == 0
-            val hasStub = $isInclusive || !isExact
-            val longLength = gap / $stepVar + (if (hasStub) 1 else 0)
+          val terminalElement = {
+            val gap = endVal.toLong - startVal.toLong
+            val isExact = gap % stepVal == 0
+            val hasStub = isInclusive.splice || !isExact
+            val longLength = gap / stepVal + (if (hasStub) 1 else 0)
             val isEmpty =
-            ($startVar > $endVar && $stepVar > 0) ||
-              ($startVar < $endVar && $stepVar < 0) ||
-              ($startVar == $endVar && !$isInclusive)
+              (startVal > endVal && stepVal > 0) ||
+                (startVal < endVal && stepVal < 0) ||
+                (startVal == endVal && !isInclusive.splice)
             val numRangeElements =
               if (isEmpty) 0
               else longLength
-            ($startVar.toLong + numRangeElements * $stepVar).toInt
+            (startVal.toLong + numRangeElements * stepVal).toInt
           }
 
-          var $varName = $startVar
-          while ($varName != $terminalElementVar && !$cancelVar) {
-            $application
-            $varName += $stepVar
+          var cur = startVal
+          while (cur != terminalElement && !cancel.shouldCancel.splice) {
+            inner(reifyInner(cur)).splice
+            cur += stepVal
           }
-        """
+        }
     }
-
-    body
   }
 }
