@@ -20,7 +20,8 @@ will be converted into code roughly equivalent to this:
 var acc = 0
 var i = 0
 while (i < array.length) {
-  acc = acc + array(i)
+  val x = array(i)
+  acc = acc + x * x
   i += 1
 }
 acc
