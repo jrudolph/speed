@@ -106,18 +106,20 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
         }
     }
 
-    case _ ⇒
-      inner ⇒ {
-        val v = c.fresh(newTermName("v$"))
-        val app = inner(Expr(Ident(v))).tree
-        val GeneratorSetup(inits, body) = generateGenOld(gen, v, app, cancelVar)
+    case InitAddingGenerator(outer, inits) ⇒
+      val outerGen = generateGenNew(cancelVar)(outer)
 
+      inner ⇒
         Expr(q"""
-        ..$inits
+          ..$inits
 
-        $body
+          ${
+          outerGen { oValue ⇒
+            inner(oValue)
+          }.tree
+        }
         """)
-      }
+
   }
   def genMap[T, U](outerGen: ExprGen[T], f: Expr[T] ⇒ Expr[U]): ExprGen[U] =
     (inner: Expr[U] ⇒ Expr[Unit]) ⇒
@@ -148,19 +150,4 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
           }
         }.splice
       }
-
-  def generateGen(gen: Generator, expectedValName: TermName, application: Tree, cancel: Cancel): GeneratorSetup = {
-    val genny = generateGenNew(cancel)(gen)
-
-    val generate = genny(v ⇒ Expr(q""" {
-      val $expectedValName = ${v.tree}
-      $application
-    }
-    """))
-
-    generate.tree
-  }
-  def generateGenOld(gen: Generator, expectedValName: TermName, application: Tree, cancelVar: Cancel): GeneratorSetup = gen match {
-    case InitAddingGenerator(outer, inits) ⇒ generateGen(outer, expectedValName, application, cancelVar).prependInits(inits)
-  }
 }
