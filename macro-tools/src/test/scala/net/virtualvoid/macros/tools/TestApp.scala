@@ -36,9 +36,21 @@ object TestMacro {
   }
 
   def testMacro(c: Context)(i: c.Expr[Int]): c.Expr[String] = new Impl[c.type](c) {
-    def res: c.Expr[String] = reify {
-      val x = 5
-      (x + (38 * i.splice).reified.splice).reified.splice.toString
+    def transform(i: Expr[Int], j: Int): Expr[Int] = reifyShow {
+      val x = i.splice
+
+      (if (j > 0) (transform(x.reified, j - 1).splice + 23).reified else (x + 42).reified).splice
+    }
+    def res: c.Expr[String] = {
+      val res = reifyShow {
+        var x = 42
+
+        transform(x.reified, 10).splice.toString
+        //(x + (38 * i.splice).reified.splice).reified.splice.toString
+        //transform(x.reified).splice(38).toString
+      }
+      println(c.universe.show(res.tree))
+      res
     }
   }.res
 }

@@ -107,13 +107,52 @@ object ReifierImpl {
       }
     }
 
+    class FindDefinitions extends Traverser {
+      var definitions = Set.empty[Symbol]
+
+      override def traverse(tree: Tree): Unit = tree match {
+        case v: ValDef ⇒
+          definitions += v.symbol
+          traverse(v.rhs)
+        case _ ⇒ super.traverse(tree)
+      }
+
+      def run(t: Tree): Set[Symbol] = {
+        traverse(t)
+        definitions
+      }
+    }
+
+    class HygienifyDefs(defs: Map[Symbol, TermName]) extends Transformer {
+      override def transform(t: Tree): Tree = t match {
+        case v @ ValDef(mods, name, tpt, rhs) if defs.contains(v.symbol) ⇒
+          ValDef(mods, defs(v.symbol), tpt, transform(rhs))
+        case x: Ident if defs.contains(x.symbol) ⇒
+          //println(s"Replaced Ident($x)")
+          Ident(defs(x.symbol))
+        case s: Select if defs.contains(s.symbol) ⇒
+          //println(s"Replaced Select($s)")
+          Select(s.qualifier, defs(s.symbol))
+        case _ ⇒ super.transform(t)
+      }
+    }
+
     val withPlaceholders = CreatePlaceholders.transform(t.tree)
-    //println(s"With: '$withPlaceholders'")
+
+    val allDefs = (new FindDefinitions).run(withPlaceholders)
+    //println(s"Found defs: $allDefs in $t")
+
+    val newNames = allDefs.map { s ⇒
+      s -> c.fresh(newTermName(s.asTerm.name.asInstanceOf[TermName].decoded + "$"))
+    }.toMap
+
+    val freshenized = (new HygienifyDefs(newNames)).transform(withPlaceholders)
+    val justTheNames = newNames.values.toSet
 
     val univ = c.typeCheck(q"${c.prefix}.c.universe")
 
-    //val reified = c.reifyTree(treeBuild.mkRuntimeUniverseRef, EmptyTree, withPlaceholders)
-    val reified = c.reifyTree(univ, EmptyTree, withPlaceholders)
+    //println(s"Before reification $freshenized")
+    val reified = c.reifyTree(univ, EmptyTree, freshenized)
     //println(s"Reified: $reified")
 
     val pref = c.prefix
@@ -141,7 +180,7 @@ object ReifierImpl {
           args = args.tail
           tpes = tpes.tail
 
-          buildExpr(res)(c.WeakTypeTag(tpe))
+          buildExpr(res)(c.WeakTypeTag(tpe.widen))
         case _ ⇒ super.transform(tree)
       }
 
@@ -152,21 +191,19 @@ object ReifierImpl {
       }
     }
 
-    object Placeholder {
-      def unapply(tree: Tree): Option[(String, Seq[Tree])] = tree match {
+    object NewTermName {
+      def unapply(tree: Tree): Option[String] = tree match {
         // Scala 2.10
-        case q"${ _ }.Apply(${ _ }.Ident(${ _ }.newTermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
-          Some((name, args))
+        case q"${ _ }.newTermName(${ Literal(Constant(name: String)) })" ⇒ Some(name)
         // Scala 2.11
-        case q"${ _ }.Apply(${ _ }.Ident(${ _ }.TermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
-          Some((name, args))
+        case q"${ _ }.TermName(${ Literal(Constant(name: String)) })" ⇒ Some(name)
         case _ ⇒ None
       }
     }
 
     object ReplacePlaceholder extends Transformer {
       override def transform(tree: Tree): Tree = tree match {
-        case Placeholder(name, args) ⇒
+        case q"${ _ }.Apply(${ _ }.Ident(${ NewTermName(name) }), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
           val before = placeholders(newTermName(name))
           val placed = (new InsertInnerReifies).run(before, args)
 
@@ -176,9 +213,25 @@ object ReifierImpl {
       }
     }
 
-    val replaced = c.resetLocalAttrs(ReplacePlaceholder.transform(reified))
-    //println(s"Replaced: $replaced")
+    val replaced = ReplacePlaceholder.transform(reified)
 
-    c.Expr[c.prefix.value.Expr[T]](atPos(t.tree.pos)(replaced))
+    def createFreshName(name: TermName): Tree = q"val $name = ${c.prefix}.c.fresh(${c.prefix}.c.universe.newTermName(${name.decoded + "$"}))"
+    object ReplaceFreshNames extends Transformer {
+      override def transform(tree: Tree): Tree = tree match {
+        case NewTermName(name) if justTheNames(name) ⇒
+          //println(s"Found instance of $name: $tree")
+          q"${Ident(name)}.asInstanceOf[$$u.TermName]"
+        case _ ⇒ super.transform(tree)
+      }
+    }
+
+    val withFreshNames =
+      q"""
+      ..${justTheNames.toSeq.map(createFreshName(_))}
+
+      ${ReplaceFreshNames.transform(replaced)}
+    """
+
+    c.Expr[c.prefix.value.Expr[T]](atPos(t.tree.pos)(c.resetLocalAttrs(withFreshNames)))
   }
 }
