@@ -81,12 +81,10 @@ object ReifierImpl {
           val placeholder = RemoveInnerReify.run(expr)
           addPlaceholder(name, placeholder)
 
-          val res = q"$name(..${placeholder.args})"
-          //res.tpe = tree.tpe
-          res
-        /*val res = Ident(name)
-          res.tpe = tree.tpe
-          res*/
+          //println(s"Found splice for $expr: $placeholder")
+
+          q"$name(..${placeholder.args})"
+
         case _ ⇒ super.transform(tree)
       }
     }
@@ -152,6 +150,6 @@ object ReifierImpl {
     val replaced = c.resetLocalAttrs(ReplacePlaceholder.transform(reified))
     //println(s"Replaced: $replaced")
 
-    c.Expr[c.prefix.value.Expr[T]](replaced)
+    c.Expr[c.prefix.value.Expr[T]](atPos(t.tree.pos)(replaced))
   }
 }
