@@ -45,12 +45,18 @@ trait Reifier extends WithContext {
 
   def Expr[T](t: Tree): Expr[T] = new Expr[T] { def tree = t }
   def reify[T](t: T): Expr[T] = macro ReifierImpl.reifyImpl[T]
+  def reifyShow[T](t: T): Expr[T] = macro ReifierImpl.reifyShowImpl[T]
 
   @compileTimeOnly("reifyInner can only be used inside of reify")
   def reifyInner[T](t: T): Expr[T] = ???
 }
 
 object ReifierImpl {
+  def reifyShowImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
+    val res = reifyImpl(c)(t)
+    c.info(t.tree.pos, c.universe.show(res), false)
+    res
+  }
   def reifyImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
     import c.universe._
 
