@@ -118,8 +118,10 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
   def genMap[T, U](outerGen: ExprGen[T], f: Expr[T] ⇒ Expr[U]): ExprGen[U] =
     (inner: Expr[U] ⇒ Expr[Unit]) ⇒
       outerGen { tVal ⇒
-        val uVal = f(tVal)
-        inner(uVal)
+        reify {
+          val uVal = f(tVal).splice
+          inner(uVal.reified).splice
+        }
       }
 
   def genFilter[T, U](outerGen: ExprGen[T], f: Expr[T] ⇒ Expr[Boolean]): ExprGen[T] =
@@ -138,8 +140,8 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
 
         outerGen { value ⇒
           {
-            val v = value.splice
-            if (counter < numberVal) inner(v.reified).splice
+            val uVal = value.splice
+            if (counter < numberVal) inner(uVal.reified).splice
             counter += 1
           }.reified
         }.splice
