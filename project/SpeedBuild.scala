@@ -11,11 +11,11 @@ object SpeedBuild extends Build {
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
       "org.specs2" %% "specs2" % "2.3.12" % "test"
     ) ++ (
-      if (scalaVersion.value.startsWith("2.10")) List("org.scalamacros" %% "quasiquotes" % "2.0.0")
+      if (scalaVersion.value.startsWith("2.10")) List("org.scalamacros" %% "quasiquotes" % "2.0.0" % "provided")
       else Nil
       ),
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0" cross CrossVersion.full),
-    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
+    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _ % "provided")
   ) ++ ScalariformSupport.formatSettings
 
   def alwaysCleanTests = Seq(
