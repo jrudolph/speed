@@ -54,7 +54,7 @@ trait Reifier extends WithContext {
 object ReifierImpl {
   def reifyShowImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
     val res = reifyImpl(c)(t)
-    c.info(t.tree.pos, c.universe.show(res), false)
+    c.info(t.tree.pos, s"For '${t.tree}': ${c.universe.show(res)}", false)
     res
   }
   def reifyImpl[T: c.WeakTypeTag](c: Context { type PrefixType = Reifier })(t: c.Expr[T]): c.Expr[c.prefix.value.Expr[T]] = {
