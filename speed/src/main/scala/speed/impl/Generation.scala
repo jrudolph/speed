@@ -28,12 +28,6 @@ import scala.collection.generic.CanBuildFrom
 
 trait Generation extends RangeGeneration with ListGeneration with TerminalGeneration with Reifier { self: SpeedImpl ⇒
   import c.universe._
-  case class GeneratorSetup(inits: Seq[Tree], body: Tree) {
-    def prependInits(inits: Seq[Tree]): GeneratorSetup = copy(inits = inits ++ this.inits)
-  }
-  object GeneratorSetup {
-    implicit def treeToSetup(t: Tree): GeneratorSetup = GeneratorSetup(Nil, t)
-  }
 
   case class Cancel(cancelVar: TermName) {
     val shouldCancel: Expr[Boolean] = Expr[Boolean](Ident(cancelVar))
@@ -43,7 +37,7 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
   def generate(chain: OperationChain): Tree = {
     val cancel = Cancel(c.fresh(newTermName("cancel$")))
 
-    val generator = generateGenNew(cancel)(chain.generator)
+    val generator = generateGen(cancel)(chain.generator)
     val terminal = generateTerminal(chain.terminal, cancel, generator)
 
     q"""
@@ -53,7 +47,7 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
     """
   }
 
-  def generateTerminal[T, U](terminal: TerminalOperation, cancelVar: Cancel, generator: ExprGen[T]): Expr[U]
+  def generateTerminal[T, U](terminal: TerminalOperation, cancel: Cancel, generator: ExprGen[T]): Expr[U]
 
   type ExprGen[T] = (Expr[T] ⇒ Expr[Unit]) ⇒ Expr[Unit]
   type ExprFunc[T, U] = Expr[T] ⇒ Expr[U]
@@ -81,17 +75,17 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
       }
       """)
   }
-  def generateGenNew[T](cancelVar: Cancel)(gen: Generator): ExprGen[T] = gen match {
-    case MappingGenerator(outer, f)                ⇒ genMap(generateGenNew(cancelVar)(outer), closureApp(f))
-    case FilteringGenerator(outer, f)              ⇒ genFilter(generateGenNew(cancelVar)(outer), closureApp(f))
-    case TakeGenerator(outer, number)              ⇒ genTake(generateGenNew(cancelVar)(outer), Expr(number))
+  def generateGen[T](cancel: Cancel)(gen: Generator): ExprGen[T] = gen match {
+    case MappingGenerator(outer, f)                ⇒ genMap(generateGen(cancel)(outer), closureApp(f))
+    case FilteringGenerator(outer, f)              ⇒ genFilter(generateGen(cancel)(outer), closureApp(f))
+    case TakeGenerator(outer, number)              ⇒ genTake(generateGen(cancel)(outer), Expr(number))
 
-    case ListGenerator(l, tpe)                     ⇒ generateList(Expr(l), tpe, cancelVar)
-    case RangeGenerator(start, end, by, inclusive) ⇒ generateRangeNew(Expr(start), Expr(end), Expr(by), Expr(inclusive), cancelVar).asInstanceOf[ExprGen[T]]
+    case ListGenerator(l, tpe)                     ⇒ generateList(Expr(l), tpe, cancel)
+    case RangeGenerator(start, end, by, inclusive) ⇒ generateRangeNew(Expr(start), Expr(end), Expr(by), Expr(inclusive), cancel).asInstanceOf[ExprGen[T]]
 
     case FlatMappingGenerator(outer, valName, inner) ⇒ {
-      val outerGen = generateGenNew[T](cancelVar)(outer)
-      val innerGen = generateGenNew(cancelVar)(inner)
+      val outerGen = generateGen[T](cancel)(outer)
+      val innerGen = generateGen(cancel)(inner)
 
       innerst ⇒
         outerGen { oValue ⇒
@@ -107,7 +101,7 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
     }
 
     case InitAddingGenerator(outer, inits) ⇒
-      val outerGen = generateGenNew(cancelVar)(outer)
+      val outerGen = generateGen(cancel)(outer)
 
       inner ⇒
         Expr(q"""

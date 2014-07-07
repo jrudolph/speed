@@ -28,14 +28,14 @@ import scala.collection.generic.CanBuildFrom
 trait TerminalGeneration { self: SpeedImpl ⇒
   import c.universe._
 
-  def generateTerminal[T, U](terminal: TerminalOperation, cancelVar: Cancel, generator: ExprGen[T]): Expr[U] = ((terminal match {
+  def generateTerminal[T, U](terminal: TerminalOperation, cancel: Cancel, generator: ExprGen[T]): Expr[U] = ((terminal match {
     case MkString          ⇒ genMkString(generator)
     case FoldLeft(init, f) ⇒ genFoldLeft(generator, Expr(init), closure2App(f))
     case Foreach(f)        ⇒ generator(closureApp(f))
     case Reduce(tpe, f)    ⇒ genReduce(generator, closure2App(f), tpe)
     case To(cbf)           ⇒ generateToColl(generator, Expr(cbf))
-    case Forall(f)         ⇒ generateForallExists(generator, cancelVar, closureApp(f), c.literal(true), v ⇒ reify(!v.splice))
-    case Exists(f)         ⇒ generateForallExists(generator, cancelVar, closureApp(f), c.literal(false), v ⇒ v)
+    case Forall(f)         ⇒ generateForallExists(generator, cancel, closureApp(f), c.literal(true), v ⇒ reify(!v.splice))
+    case Exists(f)         ⇒ generateForallExists(generator, cancel, closureApp(f), c.literal(false), v ⇒ v)
   }): Expr[_]).asInstanceOf[Expr[U]]
 
   def genMkString(generator: ExprGen[Any]): Expr[String] =
