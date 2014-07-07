@@ -39,6 +39,10 @@ trait Reifier extends WithContext {
   implicit def autoConv[T](exp: c.Expr[T]): Expr[T] = new Expr[T] { def tree = exp.tree }
   implicit def autoConvReverse[T](e: Expr[T]): c.Expr[T] = c.Expr[T](e.tree)
   implicit def convToUnit[T](exp: Expr[T]): Expr[Unit] = new Expr[Unit] { def tree = exp.tree }
+
+  @compileTimeOnly("reified can only be used inside of reify")
+  implicit def Reified[T](any: T): { def reified: Expr[T] } = ???
+
   def Expr[T](t: Tree): Expr[T] = new Expr[T] { def tree = t }
   def reify[T](t: T): Expr[T] = macro ReifierImpl.reifyImpl[T]
 
@@ -55,12 +59,20 @@ object ReifierImpl {
     def addPlaceholder(name: TermName, ph: PlaceholderDef): Unit =
       placeholders = placeholders.updated(name, ph)
 
+    object InnerReify {
+      def unapply(tree: Tree): Option[Tree] = tree match {
+        case q"${ _ }.reifyInner[..${ _ }]($exp)"      ⇒ Some(exp)
+        case q"${ _ }.Reified[..${ _ }]($exp).reified" ⇒ Some(exp)
+        case _                                         ⇒ None
+      }
+    }
+
     object RemoveInnerReify extends Traverser {
       var args: Seq[Tree] = _
       var tpes: Seq[Type] = _
 
       override def traverse(tree: Tree): Unit = tree match {
-        case q"${ _ }.reifyInner[..${ _ }]($exp)" ⇒
+        case InnerReify(exp) ⇒
           args = args :+ CreatePlaceholders.transform(exp)
           tpes = tpes :+ exp.tpe
         case _ ⇒ super.traverse(tree)
@@ -117,7 +129,7 @@ object ReifierImpl {
       var args = Seq.empty[Tree]
       var tpes = Seq.empty[Type]
       override def transform(tree: Tree): Tree = tree match {
-        case q"${ _ }.reifyInner[$tpe](${ _ })" ⇒
+        case InnerReify(_) ⇒
           val res = ReplacePlaceholder.transform(args(0))
           val tpe = tpes(0)
           args = args.tail

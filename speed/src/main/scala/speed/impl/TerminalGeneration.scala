@@ -43,7 +43,7 @@ trait TerminalGeneration { self: SpeedImpl ⇒
       val builder = new java.lang.StringBuilder
 
       generator { value ⇒
-        reifyInner(builder.append(value.splice))
+        builder.append(value.splice).reified
       }.splice
 
       builder.toString
@@ -54,9 +54,9 @@ trait TerminalGeneration { self: SpeedImpl ⇒
       var acc = init.splice
 
       generator { value ⇒
-        reifyInner {
-          acc = foldF(reifyInner(acc), value).splice
-        }
+        {
+          acc = foldF(acc.reified, value).splice
+        }.reified
       }.splice
 
       acc
@@ -70,12 +70,12 @@ trait TerminalGeneration { self: SpeedImpl ⇒
       var empty = true
 
       generator { value ⇒
-        reifyInner {
+        {
           if (empty) {
             empty = false
             acc = value.splice
-          } else acc = f(reifyInner(acc), value).splice
-        }
+          } else acc = f(acc.reified, value).splice
+        }.reified
       }.splice
 
       if (empty) throw new UnsupportedOperationException("Can't reduce empty range")
@@ -88,9 +88,9 @@ trait TerminalGeneration { self: SpeedImpl ⇒
       val builder = cbf.splice()
 
       generator { value ⇒
-        reifyInner {
+        {
           builder += value.splice
-        }
+        }.reified
       }.splice
 
       builder.result()
@@ -102,12 +102,12 @@ trait TerminalGeneration { self: SpeedImpl ⇒
       var result = defaultValue.splice
 
       generator { value ⇒
-        reifyInner {
+        {
           result = f(value).splice
-          val newCancelValue = cancel.shouldCancel.splice || shouldCancel(reifyInner(result)).splice
+          val newCancelValue = cancel.shouldCancel.splice || shouldCancel(result.reified).splice
 
-          cancel.cancel(reifyInner(newCancelValue)).splice
-        }
+          cancel.cancel(newCancelValue.reified).splice
+        }.reified
       }.splice
 
       result

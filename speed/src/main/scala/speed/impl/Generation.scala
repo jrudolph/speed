@@ -137,11 +137,11 @@ trait Generation extends RangeGeneration with ListGeneration with TerminalGenera
         val numberVal = number.splice
 
         outerGen { value ⇒
-          reifyInner {
+          {
             val v = value.splice
-            if (counter < numberVal) inner(reifyInner(v)).splice
+            if (counter < numberVal) inner(v.reified).splice
             counter += 1
-          }
+          }.reified
         }.splice
       }
 }

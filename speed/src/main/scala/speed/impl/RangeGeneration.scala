@@ -65,7 +65,7 @@ trait RangeGeneration { self: SpeedImpl ⇒
             (isInclusive.splice && (cur <= endVal)))
             && !cancel.shouldCancel.splice) {
 
-            inner(reifyInner(cur)).splice
+            inner(cur.reified).splice
             cur += stepVal
           }
         }
@@ -79,7 +79,7 @@ trait RangeGeneration { self: SpeedImpl ⇒
             (isInclusive.splice && (cur >= endVal)))
             && !cancel.shouldCancel.splice) {
 
-            inner(reifyInner(cur)).splice
+            inner(cur.reified).splice
             cur += stepVal
           }
         }
@@ -106,7 +106,7 @@ trait RangeGeneration { self: SpeedImpl ⇒
 
           var cur = startVal
           while (cur != terminalElement && !cancel.shouldCancel.splice) {
-            inner(reifyInner(cur)).splice
+            inner(cur.reified).splice
             cur += stepVal
           }
         }

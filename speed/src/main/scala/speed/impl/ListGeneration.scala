@@ -34,7 +34,7 @@ trait ListGeneration { self: SpeedImpl ⇒
         var current = l.splice
         while (current.isInstanceOf[_root_.scala.collection.immutable.::[_]] && !cancelVar.shouldCancel.splice) {
           val curCons = current.asInstanceOf[_root_.scala.collection.immutable.::[T]]
-          inner(reifyInner(curCons.head)).splice
+          inner(curCons.head.reified).splice
           current = curCons.tail
         }
       }
