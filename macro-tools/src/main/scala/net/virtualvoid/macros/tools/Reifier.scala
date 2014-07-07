@@ -146,10 +146,21 @@ object ReifierImpl {
       }
     }
 
+    object Placeholder {
+      def unapply(tree: Tree): Option[(String, Seq[Tree])] = tree match {
+        // Scala 2.10
+        case q"${ _ }.Apply(${ _ }.Ident(${ _ }.newTermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
+          Some((name, args))
+        // Scala 2.11
+        case q"${ _ }.Apply(${ _ }.Ident(${ _ }.TermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
+          Some((name, args))
+        case _ ⇒ None
+      }
+    }
+
     object ReplacePlaceholder extends Transformer {
       override def transform(tree: Tree): Tree = tree match {
-        case q"${ _ }.Apply(${ _ }.Ident(${ _ }.newTermName(${ Literal(Constant(name: String)) })), ${ _ }.List.apply(..$args))" if name.startsWith("placeholder$") ⇒
-
+        case Placeholder(name, args) ⇒
           val before = placeholders(newTermName(name))
           val placed = (new InsertInnerReifies).run(before, args)
 
